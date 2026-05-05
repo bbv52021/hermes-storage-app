@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hermes 收纳助手</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --primary-dark: #3730a3;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .navbar-brand svg { width: 28px; height: 28px; }
+
+        .navbar-search {
+            flex: 1;
+            max-width: 480px;
+            margin: 0 32px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.15);
+            border-radius: 24px;
+            padding: 8px 16px;
+            transition: all 0.3s;
+        }
+
+        .search-box:focus-within {
+            background: rgba(255,255,255,0.25);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+        }
+
+        .search-box svg { width: 18px; height: 18px; opacity: 0.8; flex-shrink: 0; }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 15px;
+            padding: 0 10px;
+            outline: none;
+        }
+
+        .search-box input::placeholder { color: rgba(255,255,255,0.6); }
+
+        .nav-actions { display: flex; gap: 8px; }
+
+        /* 按钮样式 */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn svg { width: 16px; height: 16px; }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #16a34a; }
+
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-warning:hover { background: #d97706; }
+
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 1.5px solid var(--primary);
+        }
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+        .btn-ghost:hover { background: var(--border); color: var(--text); }
+
+        .btn-white { background: white; color: var(--primary); }
+        .btn-white:hover { background: #f1f5f9; }
+
+        .btn-sm { padding: 5px 10px; font-size: 13px; }
+        .btn-lg { padding: 12px 24px; font-size: 16px; }
+
+        /* 主内容区 */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-icon svg { width: 24px; height: 24px; }
+        .stat-icon.blue { background: #dbeafe; color: #2563eb; }
+        .stat-icon.green { background: #dcfce7; color: #16a34a; }
+        .stat-icon.orange { background: #fef3c7; color: #d97706; }
+        .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
+
+        .stat-info h3 { font-size: 24px; font-weight: 700; }
+        .stat-info p { font-size: 13px; color: var(--text-secondary); }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-left { display: flex; align-items: center; gap: 12px; }
+        .toolbar-right { display: flex; align-items: center; gap: 8px; }
+
+        .view-toggle {
+            display: flex;
+            background: var(--card);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .view-toggle button {
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .view-toggle button.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .view-toggle button svg { width: 18px; height: 18px; }
+
+        /* 面包屑导航 */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .breadcrumb a:hover { text-decoration: underline; }
+        .breadcrumb span.current { color: var(--text); font-weight: 500; }
+
+        /* 卡片网格 */
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .item-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .item-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .item-card-image {
+            height: 180px;
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .item-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .item-card-image .placeholder {
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .item-card-image .placeholder svg { width: 40px; height: 40px; opacity: 0.4; }
+
+        .item-card-image .badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .item-card-body { padding: 16px; }
+
+        .item-card-body h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .item-card-body .location {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .item-card-body .location svg { width: 14px; height: 14px; }
+
+        .item-card-body .desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .item-card-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* 列表视图 */
+        .items-table {
+            width: 100%;
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .items-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .items-table th {
+            background: #f8fafc;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .items-table td {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .items-table tr:hover td { background: #f8fafc; }
+        .items-table tr:last-child td { border-bottom: none; }
+
+        .items-table .item-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .items-table .item-thumb {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .items-table .item-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .items-table .actions-cell { display: flex; gap: 4px; }
+
+        /* 目录卡片（房屋/房间/位置） */
+        .folder-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .folder-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .folder-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+            border-color: var(--primary-light);
+        }
+
+        .folder-card .folder-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .folder-card .folder-icon svg { width: 24px; height: 24px; }
+        .folder-card .folder-icon.house { background: #dbeafe; color: #2563eb; }
+        .folder-card .folder-icon.room { background: #dcfce7; color: #16a34a; }
+        .folder-card .folder-icon.location { background: #fef3c7; color: #d97706; }
+
+        .folder-card .folder-info h3 { font-size: 15px; font-weight: 600; }
+        .folder-card .folder-info p { font-size: 13px; color: var(--text-secondary); }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal {
+            background: var(--card);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(20px);
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active .modal { transform: translateY(0); }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 { font-size: 18px; font-weight: 600; }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .modal-close:hover { background: var(--border); }
+
+        .modal-body { padding: 24px; }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* 表单 */
+        .form-group { margin-bottom: 16px; }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: var(--card);
+            color: var(--text);
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        /* 图片上传区域 */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .upload-area svg { width: 40px; height: 40px; color: var(--text-secondary); margin-bottom: 8px; }
+        .upload-area p { font-size: 14px; color: var(--text-secondary); }
+        .upload-area .hint { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+        .upload-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .upload-preview .preview-item {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .upload-preview .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .upload-preview .preview-item .remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 详情模态框 */
+        .detail-modal .modal { max-width: 720px; }
+
+        .detail-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .detail-images .img-card {
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            aspect-ratio: 1;
+        }
+
+        .detail-images .img-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s;
+        }
+
+        .detail-images .img-card:hover img { transform: scale(1.05); }
+
+        .detail-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .detail-info .info-item label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: block;
+        }
+
+        .detail-info .info-item span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 图片查看器 */
+        .image-viewer {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .image-viewer.active { opacity: 1; visibility: visible; }
+
+        .image-viewer img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .image-viewer .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 搜索结果 */
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card);
+            border-radius: 0 0 12px 12px;
+            box-shadow: var(--shadow-lg);
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 150;
+        }
+
+        .search-result-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-result-item:hover { background: #f8fafc; }
+        .search-result-item:last-child { border-bottom: none; }
+
+        .search-result-item .result-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .search-result-item .result-icon svg { width: 18px; height: 18px; color: var(--primary); }
+
+        .search-result-item .result-info h4 { font-size: 14px; font-weight: 500; }
+        .search-result-item .result-info p { font-size: 12px; color: var(--text-secondary); }
+
+        .no-results {
+            padding: 32px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .no-results svg { width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px; }
+
+        /* Toast通知 */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 250;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: var(--card);
+            border-radius: 8px;
+            padding: 12px 20px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+        }
+
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+        .toast.info { border-left: 4px solid var(--primary); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 64px 24px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg { width: 80px; height: 80px; opacity: 0.2; margin-bottom: 16px; }
+        .empty-state h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+        .empty-state p { font-size: 14px; margin-bottom: 20px; }
+
+        /* 加载状态 */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .navbar { padding: 0 16px; }
+            .navbar-search { margin: 0 16px; }
+            .main-content { padding: 16px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .items-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+            .folder-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+            .detail-info { grid-template-columns: 1fr; }
+            .nav-actions .btn span { display: none; }
+            .items-table { overflow-x: auto; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .items-grid { grid-template-columns: 1fr; }
+        }
+
+        /* 历史记录 */
+        .history-list { max-height: 200px; overflow-y: auto; }
+        .history-item {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-item .time { color: var(--primary); font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav class="navbar">
+    <div class="navbar-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span>Hermes 收纳助手</span>
+    </div>
+
+    <div class="navbar-search" style="position:relative;">
+        <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="搜索物品名称、位置..." autocomplete="off">
+        </div>
+        <div class="search-results" id="searchResults" style="display:none;"></div>
+    </div>
+
+    <div class="nav-actions">
+        <button class="btn btn-white" onclick="showAddItemModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>新增物品</span>
+        </button>
+        <button class="btn btn-white" onclick="refreshIndex()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>刷新索引</span>
+        </button>
+    </div>
+</nav>
+
+<!-- 主内容 -->
+<div class="main-content">
+    <!-- 统计卡片 -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </div>
+            <div class="stat-info"><h3 id="statHouses">-</h3><p>房屋/区域</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div class="stat-info"><h3 id="statRooms">-</h3><p>房间</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            </div>
+            <div class="stat-info"><h3 id="statItems">-</h3><p>物品总数</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="stat-info"><h3 id="statIndex">-</h3><p>索引记录</p></div>
+        </div>
+    </div>
+
+    <!-- 面包屑 -->
+    <div class="breadcrumb" id="breadcrumb">
+        <a onclick="navigateTo('root')">全部物品</a>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <div class="view-toggle">
+                <button class="active" id="viewGrid" onclick="setView('grid')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button id="viewList" onclick="setView('list')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="toolbar-right">
+            <button class="btn btn-outline btn-sm" onclick="loadData()">刷新</button>
+        </div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div id="contentArea">
+        <div class="loading"><div class="spinner"></div></div>
+    </div>
+</div>
+
+<!-- 新增物品模态框 -->
+<div class="modal-overlay" id="addItemModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>新增物品</h2>
+            <button class="modal-close" onclick="closeModal('addItemModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>所属房屋 *</label>
+                <input type="text" id="addItemHouse" placeholder="例如：我的家">
+            </div>
+            <div class="form-group">
+                <label>所属房间 *</label>
+                <input type="text" id="addItemRoom" placeholder="例如：卧室、厨房、书房">
+            </div>
+            <div class="form-group">
+                <label>具体存放位置 *</label>
+                <input type="text" id="addItemLocation" placeholder="例如：衣柜上层、书架第二层">
+            </div>
+            <div class="form-group">
+                <label>物品名称 *</label>
+                <input type="text" id="addItemName" placeholder="例如：冬季羽绒服、护照">
+            </div>
+            <div class="form-group">
+                <label>物品描述/备注</label>
+                <textarea id="addItemDesc" placeholder="可选：物品的详细描述、品牌、颜色等信息"></textarea>
+            </div>
+            <div class="form-group">
+                <label>物品图片</label>
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <p>点击或拖拽上传图片</p>
+                    <p class="hint">支持 JPG、PNG、GIF，可多选</p>
+                </div>
+                <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
+                <div class="upload-preview" id="uploadPreview"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('addItemModal')">取消</button>
+            <button class="btn btn-primary" onclick="submitAddItem()">确认入库</button>
+        </div>
+    </div>
+</div>
+
+<!-- 物品详情模态框 -->
+<div class="modal-overlay detail-modal" id="detailModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="detailTitle">物品详情</h2>
+            <button class="modal-close" onclick="closeModal('detailModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="detailBody"></div>
+        <div class="modal-footer">
+            <button class="btn btn-warning btn-sm" onclick="checkoutCurrentItem()">记录取出</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCurrentItem()">删除物品</button>
+            <button class="btn btn-ghost" onclick="closeModal('detailModal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 图片查看器 -->
+<div class="image-viewer" id="imageViewer" onclick="closeImageViewer()">
+    <button class="close-btn">&times;</button>
+    <img id="viewerImage" src="" alt="">
+</div>
+
+<!-- Toast容器 -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ========== 全局状态 ==========
+const API_BASE = '';  // 同源部署，无需前缀
+let currentView = 'grid';
+let currentPath = { house: null, room: null, location: null };
+let currentDetail = null;
+let treeData = null;
+let uploadedFiles = [];
+
+// ========== API调用 ==========
+async function api(method, path, body = null) {
+    const opts = { method, headers: {} };
+    if (body && !(body instanceof FormData)) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+    } else if (body instanceof FormData) {
+        opts.body = body;
+    }
+    const res = await fetch(`${API_BASE}${path}`, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || '请求失败');
+    return data;
+}
+
+// ========== 数据加载 ==========
+async function loadStats() {
+    try {
+        const res = await api('GET', '/api/stats');
+        document.getElementById('statHouses').textContent = res.data.total_houses;
+        document.getElementById('statRooms').textContent = res.data.total_rooms;
+        document.getElementById('statItems').textContent = res.data.total_items;
+        document.getElementById('statIndex').textContent = res.data.index_count;
+    } catch (e) { console.error('加载统计失败:', e); }
+}
+
+async function loadTree() {
+    try {
+        const res = await api('GET', '/api/tree');
+        treeData = res.data;
+        return treeData;
+    } catch (e) { console.error('加载目录树失败:', e); return null; }
+}
+
+async function loadData() {
+    const area = document.getElementById('contentArea');
+    area.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    await loadStats();
+    await loadTree();
+    renderContent();
+}
+
+// ========== 内容渲染 ==========
+function renderContent() {
+    const area = document.getElementById('contentArea');
+    const bc = document.getElementById('breadcrumb');
+
+    if (!treeData || !treeData.houses || treeData.houses.length === 0) {
+        area.innerHTML = `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <h3>还没有任何物品</h3>
+                <p>点击右上角「新增物品」开始管理您的收纳</p>
+                <button class="btn btn-primary" onclick="showAddItemModal()">新增物品</button>
+            </div>`;
+        return;
+    }
+
+    // 根据当前路径渲染
+    if (!currentPath.house) {
+        // 显示所有房屋
+        bc.innerHTML = '<a onclick="navigateTo(\'root\')">全部物品</a>';
+        renderHouses(area);
+    } else if (!currentPath.room) {
+        // 显示房屋下的房间
+        bc.innerHTML = `<a onclick="navigateTo('root')">全部物品</a> / <a onclick="navigateTo('house', '${currentPath.house}')">${currentPath.house}</a>`;
+        renderRooms(area);
+    } else if (!currentPath.location) {
+        // 显示房间下的位置
+        bc.innerHTML = `<a onclick="navigateTo('root')">全部物品</a> / <a onclick="navigateTo('house', '${currentPath.house}')">${currentPath.house}</a> / <a onclick="navigateTo('room', '${currentPath.house}', '${currentPath.room}')">${currentPath.room}</a>`;
+        renderLocations(area);
+    } else {
+        // 显示位置下的物品
+        bc.innerHTML = `<a onclick="navigateTo('root')">全部物品</a> / <a onclick="navigateTo('house', '${currentPath.house}')">${currentPath.house}</a> / <a onclick="navigateTo('room', '${currentPath.house}', '${currentPath.room}')">${currentPath.room}</a> / <span class="current">${currentPath.location}</span>`;
+        renderItems(area);
+    }
+}
+
+function renderHouses(area) {
+    let html = '<div class="folder-grid">';
+    treeData.houses.forEach(house => {
+        const itemCount = house.rooms.reduce((sum, r) => sum + r.locations.reduce((s, l) => s + l.items.length, 0), 0);
+        html += `
+            <div class="folder-card" onclick="navigateTo('house', '${escapeAttr(house.name)}')">
+                <div class="folder-icon house">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </div>
+                <div class="folder-info">
+                    <h3>${escapeHtml(house.name)}</h3>
+                    <p>${house.rooms.length} 个房间 · ${itemCount} 件物品</p>
+                </div>
+            </div>`;
+    });
+    html += '</div>';
+    area.innerHTML = html;
+}
+
+function renderRooms(area) {
+    const house = treeData.houses.find(h => h.name === currentPath.house);
+    if (!house) { navigateTo('root'); return; }
+
+    let html = '<div class="folder-grid">';
+    house.rooms.forEach(room => {
+        const itemCount = room.locations.reduce((sum, l) => sum + l.items.length, 0);
+        html += `
+            <div class="folder-card" onclick="navigateTo('room', '${escapeAttr(currentPath.house)}', '${escapeAttr(room.name)}')">
+                <div class="folder-icon room">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </div>
+                <div class="folder-info">
+                    <h3>${escapeHtml(room.name)}</h3>
+                    <p>${room.locations.length} 个位置 · ${itemCount} 件物品</p>
+                </div>
+            </div>`;
+    });
+    html += '</div>';
+    area.innerHTML = html;
+}
+
+function renderLocations(area) {
+    const house = treeData.houses.find(h => h.name === currentPath.house);
+    if (!house) { navigateTo('root'); return; }
+    const room = house.rooms.find(r => r.name === currentPath.room);
+    if (!room) { navigateTo('house', currentPath.house); return; }
+
+    let html = '<div class="folder-grid">';
+    room.locations.forEach(loc => {
+        html += `
+            <div class="folder-card" onclick="navigateTo('location', '${escapeAttr(currentPath.house)}', '${escapeAttr(currentPath.room)}', '${escapeAttr(loc.name)}')">
+                <div class="folder-icon location">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                </div>
+                <div class="folder-info">
+                    <h3>${escapeHtml(loc.name)}</h3>
+                    <p>${loc.items.length} 件物品</p>
+                </div>
+            </div>`;
+    });
+    html += '</div>';
+    area.innerHTML = html;
+}
+
+function renderItems(area) {
+    const house = treeData.houses.find(h => h.name === currentPath.house);
+    if (!house) { navigateTo('root'); return; }
+    const room = house.rooms.find(r => r.name === currentPath.room);
+    if (!room) { navigateTo('house', currentPath.house); return; }
+    const loc = room.locations.find(l => l.name === currentPath.location);
+    if (!loc) { navigateTo('room', currentPath.house, currentPath.room); return; }
+
+    if (loc.items.length === 0) {
+        area.innerHTML = `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                <h3>该位置暂无物品</h3>
+                <p>点击下方按钮添加第一件物品</p>
+                <button class="btn btn-primary" onclick="showAddItemModal()">新增物品</button>
+            </div>`;
+        return;
+    }
+
+    if (currentView === 'grid') {
+        let html = '<div class="items-grid">';
+        loc.items.forEach(item => {
+            const imgSrc = getItemImageUrl(item.name);
+            html += `
+                <div class="item-card" onclick="showItemDetail('${escapeAttr(currentPath.house)}', '${escapeAttr(currentPath.room)}', '${escapeAttr(currentPath.location)}', '${escapeAttr(item.name)}')">
+                    <div class="item-card-image">
+                        <img src="${imgSrc}" alt="${escapeHtml(item.name)}" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'><svg viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'1.5\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><path d=\\'m21 15-5-5L5 21\\'/></svg><span>暂无图片</span></div>'">
+                        ${item.image_count > 0 ? `<span class="badge">${item.image_count} 张</span>` : ''}
+                    </div>
+                    <div class="item-card-body">
+                        <h3>${escapeHtml(item.name)}</h3>
+                        <div class="location">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            ${escapeHtml(currentPath.house)} / ${escapeHtml(currentPath.room)} / ${escapeHtml(currentPath.location)}
+                        </div>
+                        ${item.description ? `<div class="desc">${escapeHtml(item.description)}</div>` : ''}
+                    </div>
+                    ${item.last_updated ? `<div class="item-card-footer">更新于 ${item.last_updated}</div>` : ''}
+                </div>`;
+        });
+        html += '</div>';
+        area.innerHTML = html;
+    } else {
+        let html = `
+            <div class="items-table">
+                <table>
+                    <thead><tr>
+                        <th>物品</th><th>位置</th><th>描述</th><th>图片</th><th>更新时间</th><th>操作</th>
+                    </tr></thead>
+                    <tbody>`;
+        loc.items.forEach(item => {
+            const imgSrc = getItemImageUrl(item.name);
+            html += `
+                <tr>
+                    <td>
+                        <div class="item-name-cell">
+                            <div class="item-thumb"><img src="${imgSrc}" onerror="this.style.display='none'"></div>
+                            <strong>${escapeHtml(item.name)}</strong>
+                        </div>
+                    </td>
+                    <td>${escapeHtml(currentPath.location)}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(item.description || '-')}</td>
+                    <td>${item.image_count}</td>
+                    <td>${item.last_updated || '-'}</td>
+                    <td>
+                        <div class="actions-cell">
+                            <button class="btn btn-ghost btn-sm" onclick="showItemDetail('${escapeAttr(currentPath.house)}', '${escapeAttr(currentPath.room)}', '${escapeAttr(currentPath.location)}', '${escapeAttr(item.name)}')">详情</button>
+                            <button class="btn btn-ghost btn-sm" onclick="checkoutItem('${escapeAttr(currentPath.house)}', '${escapeAttr(currentPath.room)}', '${escapeAttr(currentPath.location)}', '${escapeAttr(item.name)}')">取出</button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+        html += '</tbody></table></div>';
+        area.innerHTML = html;
+    }
+}
+
+function getItemImageUrl(itemName) {
+    return `${API_BASE}/api/items/${encodeURIComponent(currentPath.house)}/${encodeURIComponent(currentPath.room)}/${encodeURIComponent(currentPath.location)}/${encodeURIComponent(itemName)}/images/`;
+}
+
+// ========== 导航 ==========
+function navigateTo(level, house, room, location) {
+    switch (level) {
+        case 'root':
+            currentPath = { house: null, room: null, location: null };
+            break;
+        case 'house':
+            currentPath = { house, room: null, location: null };
+            break;
+        case 'room':
+            currentPath = { house, room, location: null };
+            break;
+        case 'location':
+            currentPath = { house, room, location };
+            break;
+    }
+    renderContent();
+}
+
+// ========== 视图切换 ==========
+function setView(view) {
+    currentView = view;
+    document.getElementById('viewGrid').classList.toggle('active', view === 'grid');
+    document.getElementById('viewList').classList.toggle('active', view === 'list');
+    renderContent();
+}
+
+// ========== 搜索 ==========
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const keyword = this.value.trim();
+    const resultsDiv = document.getElementById('searchResults');
+
+    if (keyword.length < 1) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+
+    searchTimeout = setTimeout(async () => {
+        try {
+            const res = await api('GET', `/api/search?keyword=${encodeURIComponent(keyword)}`);
+            if (res.data.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results"><p>未找到匹配的物品</p></div>';
+            } else {
+                let html = '';
+                res.data.forEach(item => {
+                    html += `
+                        <div class="search-result-item" onclick="navigateTo('location', '${escapeAttr(item['所属房屋'])}', '${escapeAttr(item['所属房间'])}', '${escapeAttr(item['具体存放位置'])}'); document.getElementById('searchResults').style.display='none'; document.getElementById('searchInput').value='';">
+                            <div class="result-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                            </div>
+                            <div class="result-info">
+                                <h4>${escapeHtml(item['物品名称'])}</h4>
+                                <p>${escapeHtml(item['所属房屋'])} / ${escapeHtml(item['所属房间'])} / ${escapeHtml(item['具体存放位置'])}</p>
+                            </div>
+                        </div>`;
+                });
+                resultsDiv.innerHTML = html;
+            }
+            resultsDiv.style.display = 'block';
+        } catch (e) {
+            console.error('搜索失败:', e);
+        }
+    }, 300);
+});
+
+// 点击外部关闭搜索结果
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.navbar-search')) {
+        document.getElementById('searchResults').style.display = 'none';
+    }
+});
+
+// ========== 新增物品 ==========
+function showAddItemModal() {
+    // 预填当前路径
+    if (currentPath.house) document.getElementById('addItemHouse').value = currentPath.house;
+    if (currentPath.room) document.getElementById('addItemRoom').value = currentPath.room;
+    if (currentPath.location) document.getElementById('addItemLocation').value = currentPath.location;
+    uploadedFiles = [];
+    document.getElementById('uploadPreview').innerHTML = '';
+    openModal('addItemModal');
+}
+
+function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    files.forEach(file => {
+        if (file.type.startsWith('image/')) {
+            uploadedFiles.push(file);
+        }
+    });
+    renderUploadPreview();
+    event.target.value = '';
+}
+
+function renderUploadPreview() {
+    const preview = document.getElementById('uploadPreview');
+    preview.innerHTML = '';
+    uploadedFiles.forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const div = document.createElement('div');
+            div.className = 'preview-item';
+            div.innerHTML = `
+                <img src="${e.target.result}" alt="${escapeHtml(file.name)}">
+                <button class="remove" onclick="removeFile(${idx})">&times;</button>`;
+            preview.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function removeFile(idx) {
+    uploadedFiles.splice(idx, 1);
+    renderUploadPreview();
+}
+
+// 拖拽上传
+const uploadArea = document.getElementById('uploadArea');
+uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => { uploadArea.classList.remove('dragover'); });
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    uploadedFiles.push(...files);
+    renderUploadPreview();
+});
+
+async function submitAddItem() {
+    const house = document.getElementById('addItemHouse').value.trim();
+    const room = document.getElementById('addItemRoom').value.trim();
+    const location = document.getElementById('addItemLocation').value.trim();
+    const name = document.getElementById('addItemName').value.trim();
+    const desc = document.getElementById('addItemDesc').value.trim();
+
+    if (!house || !room || !location || !name) {
+        showToast('请填写所有必填项', 'error');
+        return;
+    }
+
+    try {
+        await api('POST', '/api/items', { house, room, location, item_name: name, description: desc });
+        showToast(`物品「${name}」已成功入库`, 'success');
+
+        // 上传图片
+        if (uploadedFiles.length > 0) {
+            const formData = new FormData();
+            uploadedFiles.forEach(f => formData.append('files', f));
+            try {
+                await api('POST', `/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}/images`, formData);
+                showToast(`已上传 ${uploadedFiles.length} 张图片`, 'success');
+            } catch (e) {
+                showToast('图片上传失败: ' + e.message, 'error');
+            }
+        }
+
+        closeModal('addItemModal');
+        // 清空表单
+        document.getElementById('addItemHouse').value = '';
+        document.getElementById('addItemRoom').value = '';
+        document.getElementById('addItemLocation').value = '';
+        document.getElementById('addItemName').value = '';
+        document.getElementById('addItemDesc').value = '';
+        uploadedFiles = [];
+        document.getElementById('uploadPreview').innerHTML = '';
+
+        // 刷新数据
+        currentPath = { house, room, location };
+        await loadData();
+    } catch (e) {
+        showToast('入库失败: ' + e.message, 'error');
+    }
+}
+
+// ========== 物品详情 ==========
+async function showItemDetail(house, room, location, name) {
+    try {
+        const res = await api('GET', `/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}`);
+        currentDetail = { house, room, location, name, ...res.data };
+
+        document.getElementById('detailTitle').textContent = name;
+
+        const ledger = res.data.ledger || {};
+        const images = res.data.images || [];
+
+        let html = `
+            <div class="detail-info">
+                <div class="info-item"><label>所属房屋</label><span>${escapeHtml(ledger['所属房屋'] || house)}</span></div>
+                <div class="info-item"><label>所属房间</label><span>${escapeHtml(ledger['所属房间'] || room)}</span></div>
+                <div class="info-item"><label>存放位置</label><span>${escapeHtml(ledger['具体存放位置'] || location)}</span></div>
+                <div class="info-item"><label>入库时间</label><span>${ledger['首次入库时间'] || '-'}</span></div>
+                <div class="info-item"><label>最后更新</label><span>${ledger['最后更新时间'] || '-'}</span></div>
+                <div class="info-item"><label>图片数量</label><span>${images.length} 张</span></div>
+            </div>`;
+
+        if (ledger['物品描述/备注']) {
+            html += `<div style="margin-top:16px;"><label style="font-size:12px;color:var(--text-secondary);">物品描述</label><p style="font-size:14px;margin-top:4px;">${escapeHtml(ledger['物品描述/备注'])}</p></div>`;
+        }
+
+        if (ledger['历次变更记录']) {
+            html += `<div style="margin-top:16px;"><label style="font-size:12px;color:var(--text-secondary);">变更记录</label><div class="history-list" style="margin-top:4px;">`;
+            ledger['历次变更记录'].split('\n').forEach(record => {
+                if (record.trim()) {
+                    html += `<div class="history-item">${escapeHtml(record)}</div>`;
+                }
+            });
+            html += '</div></div>';
+        }
+
+        if (images.length > 0) {
+            html += '<div style="margin-top:16px;"><label style="font-size:12px;color:var(--text-secondary);">物品图片</label>';
+            html += '<div class="detail-images">';
+            images.forEach(img => {
+                const imgUrl = `${API_BASE}/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}/images/${encodeURIComponent(img)}`;
+                html += `<div class="img-card" onclick="event.stopPropagation(); showImageViewer('${imgUrl}')"><img src="${imgUrl}" alt="${escapeHtml(img)}" loading="lazy"></div>`;
+            });
+            html += '</div></div>';
+        }
+
+        document.getElementById('detailBody').innerHTML = html;
+        openModal('detailModal');
+    } catch (e) {
+        showToast('加载详情失败: ' + e.message, 'error');
+    }
+}
+
+// ========== 物品操作 ==========
+async function checkoutItem(house, room, location, name) {
+    const note = prompt(`记录取出「${name}」，可选填写备注：`);
+    if (note === null) return;
+    try {
+        await api('POST', `/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}/checkout?note=${encodeURIComponent(note || '')}`);
+        showToast(`物品「${name}」取出记录已保存`, 'success');
+        await loadData();
+    } catch (e) {
+        showToast('操作失败: ' + e.message, 'error');
+    }
+}
+
+function checkoutCurrentItem() {
+    if (!currentDetail) return;
+    closeModal('detailModal');
+    checkoutItem(currentDetail.house, currentDetail.room, currentDetail.location, currentDetail.name);
+}
+
+async function deleteCurrentItem() {
+    if (!currentDetail) return;
+    if (!confirm(`确定要删除物品「${currentDetail.name}」吗？此操作不可恢复！`)) return;
+    try {
+        await api('DELETE', `/api/items/${encodeURIComponent(currentDetail.house)}/${encodeURIComponent(currentDetail.room)}/${encodeURIComponent(currentDetail.location)}/${encodeURIComponent(currentDetail.name)}`);
+        showToast(`物品「${currentDetail.name}」已删除`, 'success');
+        closeModal('detailModal');
+        await loadData();
+    } catch (e) {
+        showToast('删除失败: ' + e.message, 'error');
+    }
+}
+
+async function refreshIndex() {
+    try {
+        const res = await api('POST', '/api/index/refresh');
+        showToast(res.message, 'success');
+        await loadStats();
+    } catch (e) {
+        showToast('刷新索引失败: ' + e.message, 'error');
+    }
+}
+
+// ========== 图片查看器 ==========
+function showImageViewer(url) {
+    document.getElementById('viewerImage').src = url;
+    document.getElementById('imageViewer').classList.add('active');
+}
+
+function closeImageViewer() {
+    document.getElementById('imageViewer').classList.remove('active');
+}
+
+// ========== 模态框 ==========
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// ESC关闭模态框
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+        closeImageViewer();
+    }
+});
+
+// ========== Toast通知 ==========
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const icons = {
+        success: '<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+        error: '<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+        info: '<svg viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+    toast.innerHTML = `${icons[type] || icons.info}<span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// ========== 工具函数 ==========
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function escapeAttr(str) {
+    if (!str) return '';
+    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ========== 初始化 ==========
+loadData();
+</script>
+</body>
+</html>
