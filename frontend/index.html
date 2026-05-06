@@ -441,6 +441,33 @@
         .folder-card .folder-info h3 { font-size: 15px; font-weight: 600; }
         .folder-card .folder-info p { font-size: 13px; color: var(--text-secondary); }
 
+        /* 改进①：目录卡片缩略图预览条 */
+        .folder-card .thumb-strip {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .folder-card .thumb-strip .thumb {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .folder-card .thumb-strip .thumb-more {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            background: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
         /* 模态框 */
         .modal-overlay {
             position: fixed;
@@ -973,10 +1000,12 @@
             </button>
         </div>
         <div class="modal-body" id="detailBody"></div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="flex-wrap:wrap;">
             <button class="btn btn-warning btn-sm" onclick="checkoutCurrentItem()">记录取出</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteCurrentItem()">删除物品</button>
-            <button class="btn btn-ghost" onclick="closeModal('detailModal')">关闭</button>
+            <button class="btn btn-outline btn-sm" onclick="transferCurrentItem()">转移位置</button>
+            <button class="btn btn-danger btn-sm" onclick="destroyCurrentItem()">销毁物品</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteCurrentItem()">删除</button>
+            <button class="btn btn-ghost btn-sm" onclick="closeModal('detailModal')">关闭</button>
         </div>
     </div>
 </div>
@@ -1041,6 +1070,40 @@ async function loadData() {
     renderContent();
 }
 
+// ========== 改进①：辅助函数 ==========
+// 收集某层级下所有物品（带路径信息）
+function collectItemsWithPath(house, room, location, items) {
+    return items.map(item => ({
+        ...item,
+        house: house,
+        room: room,
+        location: location,
+    }));
+}
+
+// 生成缩略图预览条HTML
+function renderThumbStrip(items) {
+    let thumbs = [];
+    items.forEach(item => {
+        if (item.images && item.images.length > 0) {
+            const imgUrl = `${API_BASE}/api/items/${encodeURIComponent(item.house)}/${encodeURIComponent(item.room || '')}/${encodeURIComponent(item.location || '')}/${encodeURIComponent(item.name)}/images/${encodeURIComponent(item.images[0])}`;
+            thumbs.push(imgUrl);
+        }
+    });
+    if (thumbs.length === 0) return '';
+    const show = thumbs.slice(0, 4);
+    const extra = thumbs.length - 4;
+    let html = '<div class="thumb-strip">';
+    show.forEach(url => {
+        html += `<img class="thumb" src="${url}" loading="lazy" onerror="this.style.display='none'">`;
+    });
+    if (extra > 0) {
+        html += `<div class="thumb-more">+${extra}</div>`;
+    }
+    html += '</div>';
+    return html;
+}
+
 // ========== 内容渲染 ==========
 function renderContent() {
     const area = document.getElementById('contentArea');
@@ -1081,15 +1144,28 @@ function renderHouses(area) {
     let html = '<div class="folder-grid">';
     treeData.houses.forEach(house => {
         const itemCount = house.rooms.reduce((sum, r) => sum + r.locations.reduce((s, l) => s + l.items.length, 0), 0);
+        // 收集所有物品（带路径）
+        let allItems = [];
+        house.rooms.forEach(r => {
+            r.locations.forEach(l => {
+                l.items.forEach(item => {
+                    allItems.push({ ...item, house: house.name, room: r.name, location: l.name });
+                });
+            });
+        });
+        const thumbHtml = renderThumbStrip(allItems);
         html += `
-            <div class="folder-card" onclick="navigateTo('house', '${escapeAttr(house.name)}')">
-                <div class="folder-icon house">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            <div class="folder-card" onclick="navigateTo('house', '${escapeAttr(house.name)}')" style="flex-direction:column;align-items:stretch;">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <div class="folder-icon house">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    </div>
+                    <div class="folder-info">
+                        <h3>${escapeHtml(house.name)}</h3>
+                        <p>${house.rooms.length} 个房间 · ${itemCount} 件物品</p>
+                    </div>
                 </div>
-                <div class="folder-info">
-                    <h3>${escapeHtml(house.name)}</h3>
-                    <p>${house.rooms.length} 个房间 · ${itemCount} 件物品</p>
-                </div>
+                ${thumbHtml}
             </div>`;
     });
     html += '</div>';
@@ -1103,15 +1179,26 @@ function renderRooms(area) {
     let html = '<div class="folder-grid">';
     house.rooms.forEach(room => {
         const itemCount = room.locations.reduce((sum, l) => sum + l.items.length, 0);
+        // 收集所有物品（带路径）
+        let allItems = [];
+        room.locations.forEach(l => {
+            l.items.forEach(item => {
+                allItems.push({ ...item, house: currentPath.house, room: room.name, location: l.name });
+            });
+        });
+        const thumbHtml = renderThumbStrip(allItems);
         html += `
-            <div class="folder-card" onclick="navigateTo('room', '${escapeAttr(currentPath.house)}', '${escapeAttr(room.name)}')">
-                <div class="folder-icon room">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <div class="folder-card" onclick="navigateTo('room', '${escapeAttr(currentPath.house)}', '${escapeAttr(room.name)}')" style="flex-direction:column;align-items:stretch;">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <div class="folder-icon room">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    </div>
+                    <div class="folder-info">
+                        <h3>${escapeHtml(room.name)}</h3>
+                        <p>${room.locations.length} 个位置 · ${itemCount} 件物品</p>
+                    </div>
                 </div>
-                <div class="folder-info">
-                    <h3>${escapeHtml(room.name)}</h3>
-                    <p>${room.locations.length} 个位置 · ${itemCount} 件物品</p>
-                </div>
+                ${thumbHtml}
             </div>`;
     });
     html += '</div>';
@@ -1126,15 +1213,21 @@ function renderLocations(area) {
 
     let html = '<div class="folder-grid">';
     room.locations.forEach(loc => {
+        // 收集该位置下所有物品（带路径）
+        const allItems = collectItemsWithPath(currentPath.house, currentPath.room, loc.name, loc.items);
+        const thumbHtml = renderThumbStrip(allItems);
         html += `
-            <div class="folder-card" onclick="navigateTo('location', '${escapeAttr(currentPath.house)}', '${escapeAttr(currentPath.room)}', '${escapeAttr(loc.name)}')">
-                <div class="folder-icon location">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            <div class="folder-card" onclick="navigateTo('location', '${escapeAttr(currentPath.house)}', '${escapeAttr(currentPath.room)}', '${escapeAttr(loc.name)}')" style="flex-direction:column;align-items:stretch;">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <div class="folder-icon location">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    </div>
+                    <div class="folder-info">
+                        <h3>${escapeHtml(loc.name)}</h3>
+                        <p>${loc.items.length} 件物品</p>
+                    </div>
                 </div>
-                <div class="folder-info">
-                    <h3>${escapeHtml(loc.name)}</h3>
-                    <p>${loc.items.length} 件物品</p>
-                </div>
+                ${thumbHtml}
             </div>`;
     });
     html += '</div>';
@@ -1163,7 +1256,7 @@ function renderItems(area) {
     if (currentView === 'grid') {
         let html = '<div class="items-grid">';
         loc.items.forEach(item => {
-            const imgSrc = getItemImageUrl(item.name);
+            const imgSrc = getItemImageUrl(item.name, currentPath.house, currentPath.room, currentPath.location);
             html += `
                 <div class="item-card" onclick="showItemDetail('${escapeAttr(currentPath.house)}', '${escapeAttr(currentPath.room)}', '${escapeAttr(currentPath.location)}', '${escapeAttr(item.name)}')">
                     <div class="item-card-image">
@@ -1192,7 +1285,7 @@ function renderItems(area) {
                     </tr></thead>
                     <tbody>`;
         loc.items.forEach(item => {
-            const imgSrc = getItemImageUrl(item.name);
+            const imgSrc = getItemImageUrl(item.name, currentPath.house, currentPath.room, currentPath.location);
             html += `
                 <tr>
                     <td>
@@ -1218,8 +1311,11 @@ function renderItems(area) {
     }
 }
 
-function getItemImageUrl(itemName) {
-    return `${API_BASE}/api/items/${encodeURIComponent(currentPath.house)}/${encodeURIComponent(currentPath.room)}/${encodeURIComponent(currentPath.location)}/${encodeURIComponent(itemName)}/images/`;
+function getItemImageUrl(itemName, house, room, location) {
+    house = house || currentPath.house;
+    room = room || currentPath.room;
+    location = location || currentPath.location;
+    return `${API_BASE}/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(itemName)}/images/`;
 }
 
 // ========== 导航 ==========
@@ -1288,6 +1384,83 @@ document.getElementById('searchInput').addEventListener('input', function() {
         }
     }, 300);
 });
+
+// 改进②：搜索框按回车展示完整搜索结果页
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const keyword = this.value.trim();
+        if (keyword.length < 1) return;
+        document.getElementById('searchResults').style.display = 'none';
+        showSearchResultsPage(keyword);
+    }
+});
+
+// 改进②：展示完整搜索结果页
+async function showSearchResultsPage(keyword) {
+    const area = document.getElementById('contentArea');
+    area.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+    try {
+        const res = await api('GET', `/api/search?keyword=${encodeURIComponent(keyword)}`);
+        const results = res.data;
+
+        // 更新面包屑
+        document.getElementById('breadcrumb').innerHTML = `
+            <a onclick="navigateTo('root')">全部物品</a> / <span class="current">搜索: "${escapeHtml(keyword)}" (${results.length} 条结果)</span>
+        `;
+
+        if (results.length === 0) {
+            area.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <h3>未找到匹配的物品</h3>
+                    <p>尝试使用其他关键词搜索</p>
+                    <button class="btn btn-primary" onclick="navigateTo('root')">返回首页</button>
+                </div>`;
+            return;
+        }
+
+        let html = '<div class="items-grid">';
+        results.forEach(item => {
+            const house = item['所属房屋'];
+            const room = item['所属房间'];
+            const loc = item['具体存放位置'];
+            const name = item['物品名称'];
+            const desc = item['description'] || '';
+            const images = item['images'] || [];
+            const firstImg = images.length > 0
+                ? `${API_BASE}/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(loc)}/${encodeURIComponent(name)}/images/${encodeURIComponent(images[0])}`
+                : '';
+
+            html += `
+                <div class="item-card" onclick="showItemDetail('${escapeAttr(house)}', '${escapeAttr(room)}', '${escapeAttr(loc)}', '${escapeAttr(name)}')">
+                    <div class="item-card-image">
+                        ${firstImg
+                            ? `<img src="${firstImg}" alt="${escapeHtml(name)}" loading="lazy">`
+                            : `<div class="placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span>暂无图片</span></div>`
+                        }
+                        ${images.length > 0 ? `<span class="badge">${images.length} 张</span>` : ''}
+                    </div>
+                    <div class="item-card-body">
+                        <h3>${escapeHtml(name)}</h3>
+                        <div class="location">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            ${escapeHtml(house)} / ${escapeHtml(room)} / ${escapeHtml(loc)}
+                        </div>
+                        ${desc ? `<div class="desc">${escapeHtml(desc)}</div>` : ''}
+                    </div>
+                    <div class="item-card-footer">
+                        <span>更新于 ${item['最后更新时间'] || '-'}</span>
+                    </div>
+                </div>`;
+        });
+        html += '</div>';
+        area.innerHTML = html;
+    } catch (e) {
+        area.innerHTML = `<div class="empty-state"><h3>搜索失败</h3><p>${escapeHtml(e.message)}</p></div>`;
+    }
+}
 
 // 点击外部关闭搜索结果
 document.addEventListener('click', function(e) {
@@ -1479,6 +1652,48 @@ async function deleteCurrentItem() {
         await loadData();
     } catch (e) {
         showToast('删除失败: ' + e.message, 'error');
+    }
+}
+
+// 改进③：销毁物品
+async function destroyCurrentItem() {
+    if (!currentDetail) return;
+    if (!confirm(`确定要销毁物品「${currentDetail.name}」吗？\n销毁后会保留记录但标记为已销毁。`)) return;
+    const note = prompt('可选填写销毁备注：');
+    if (note === null) return;
+    try {
+        await api('POST', `/api/items/${encodeURIComponent(currentDetail.house)}/${encodeURIComponent(currentDetail.room)}/${encodeURIComponent(currentDetail.location)}/${encodeURIComponent(currentDetail.name)}/destroy?note=${encodeURIComponent(note || '')}`);
+        showToast(`物品「${currentDetail.name}」已标记为销毁`, 'success');
+        closeModal('detailModal');
+        await loadData();
+    } catch (e) {
+        showToast('操作失败: ' + e.message, 'error');
+    }
+}
+
+// 改进③：转移物品位置
+async function transferCurrentItem() {
+    if (!currentDetail) return;
+    const newHouse = prompt('新所属房屋：', currentDetail.house);
+    if (!newHouse) return;
+    const newRoom = prompt('新所属房间：', currentDetail.room);
+    if (!newRoom) return;
+    const newLocation = prompt('新具体位置：', currentDetail.location);
+    if (!newLocation) return;
+    const note = prompt('可选填写转移备注：');
+    if (note === null) return;
+
+    try {
+        await api('POST', `/api/items/${encodeURIComponent(currentDetail.house)}/${encodeURIComponent(currentDetail.room)}/${encodeURIComponent(currentDetail.location)}/${encodeURIComponent(currentDetail.name)}/transfer?note=${encodeURIComponent(note || '')}`, {
+            new_house: newHouse,
+            new_room: newRoom,
+            new_location: newLocation
+        });
+        showToast(`物品「${currentDetail.name}」已转移`, 'success');
+        closeModal('detailModal');
+        await loadData();
+    } catch (e) {
+        showToast('转移失败: ' + e.message, 'error');
     }
 }
 
