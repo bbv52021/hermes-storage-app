@@ -38,7 +38,7 @@ app.add_middleware(
 os.makedirs(STORAGE_ROOT, exist_ok=True)
 
 # 挂载静态文件（前端页面）
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static")
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
