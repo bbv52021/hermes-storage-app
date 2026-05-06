@@ -133,15 +133,22 @@ def update_ledger(item_dir: Path, updates: dict) -> dict:
 
 
 def read_global_index() -> list[dict]:
-    """读取全局物品索引，返回物品列表"""
+    """读取全局物品索引（仅基本索引部分），返回物品列表"""
     index_path = get_index_path()
     if not index_path.exists():
         return []
 
     content = index_path.read_text(encoding="utf-8")
     items = []
+    in_log = False
     for line in content.strip().split("\n"):
         if not line.strip():
+            continue
+        # 遇到日志分隔线后停止解析基本索引
+        if line.strip() == "========== 操作日志 ==========":
+            in_log = True
+            continue
+        if in_log:
             continue
         parts = line.split("｜")
         if len(parts) >= 6:
@@ -156,8 +163,25 @@ def read_global_index() -> list[dict]:
     return items
 
 
-def write_global_index(items: list[dict]):
-    """写入全局物品索引"""
+def read_index_log() -> list[str]:
+    """读取索引文件中的操作日志部分"""
+    index_path = get_index_path()
+    if not index_path.exists():
+        return []
+    content = index_path.read_text(encoding="utf-8")
+    logs = []
+    in_log = False
+    for line in content.split("\n"):
+        if line.strip() == "========== 操作日志 ==========":
+            in_log = True
+            continue
+        if in_log and line.strip():
+            logs.append(line.strip())
+    return logs
+
+
+def write_global_index(items: list[dict], preserve_log: bool = True):
+    """写入全局物品索引（保留操作日志）"""
     index_path = get_index_path()
     ensure_dir(index_path.parent)
 
@@ -173,7 +197,34 @@ def write_global_index(items: list[dict]):
         ])
         lines.append(line)
 
-    index_path.write_text("\n".join(lines), encoding="utf-8")
+    # 保留已有的操作日志
+    if preserve_log:
+        existing_logs = read_index_log()
+        if existing_logs:
+            lines.append("")
+            lines.append("========== 操作日志 ==========")
+            lines.extend(existing_logs)
+
+    index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def append_index_log(log_text: str):
+    """追加一条操作日志到索引文件"""
+    index_path = get_index_path()
+    ensure_dir(index_path.parent)
+
+    content = ""
+    if index_path.exists():
+        content = index_path.read_text(encoding="utf-8")
+
+    # 如果文件中没有日志分隔线，添加
+    if "========== 操作日志 ==========" not in content:
+        if content and not content.endswith("\n"):
+            content += "\n"
+        content += "\n========== 操作日志 ==========\n"
+
+    content += log_text + "\n"
+    index_path.write_text(content, encoding="utf-8")
 
 
 def update_index_entry(item_name: str, house: str, room: str, location: str,
