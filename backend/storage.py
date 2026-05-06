@@ -22,12 +22,12 @@ from config import (
 
 
 def sanitize_name(name: str) -> str:
-    """清理文件/文件夹名称，移除非法字符"""
+    """清理文件/文件夹名称，仅移除文件系统禁止的字符"""
     cleaned = name.strip()
     for char in FORBIDDEN_CHARS:
         cleaned = cleaned.replace(char, "")
-    # 移除emoji和特殊符号
-    cleaned = re.sub(r'[^\w\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\s\-_.]', '', cleaned)
+    # 移除emoji，但保留常见符号（+、#、&、(、)等）
+    cleaned = re.sub(r'[\U00010000-\U0010ffff]', '', cleaned)
     cleaned = cleaned.strip()
     if not cleaned:
         raise ValueError(f"名称 '{name}' 清理后为空，请提供有效名称")
@@ -209,22 +209,24 @@ def write_global_index(items: list[dict], preserve_log: bool = True):
 
 
 def append_index_log(log_text: str):
-    """追加一条操作日志到索引文件"""
+    """追加一条操作日志到索引文件（直接追加，不读取重写）"""
     index_path = get_index_path()
     ensure_dir(index_path.parent)
 
-    content = ""
-    if index_path.exists():
+    # 检查是否需要添加日志分隔线
+    need_separator = False
+    if not index_path.exists():
+        need_separator = True
+    else:
         content = index_path.read_text(encoding="utf-8")
+        if "========== 操作日志 ==========" not in content:
+            need_separator = True
 
-    # 如果文件中没有日志分隔线，添加
-    if "========== 操作日志 ==========" not in content:
-        if content and not content.endswith("\n"):
-            content += "\n"
-        content += "\n========== 操作日志 ==========\n"
-
-    content += log_text + "\n"
-    index_path.write_text(content, encoding="utf-8")
+    # 以追加模式打开文件
+    with open(index_path, "a", encoding="utf-8") as f:
+        if need_separator:
+            f.write("\n========== 操作日志 ==========\n")
+        f.write(log_text + "\n")
 
 
 def update_index_entry(item_name: str, house: str, room: str, location: str,
