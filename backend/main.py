@@ -169,6 +169,13 @@ async def create_item(data: ItemCreate):
         # 更新全局索引
         storage.update_index_entry(data.item_name, data.house, data.room, data.location, now)
 
+        # 追加操作日志到索引文件
+        desc_text = f"，描述: {data.description}" if data.description else ""
+        storage.append_index_log(
+            f"[{now}] [新增入库] 物品名称: {data.item_name} ｜ "
+            f"位置: {data.house}/{data.room}/{data.location}{desc_text}"
+        )
+
         return {
             "success": True,
             "message": f"物品 '{data.item_name}' 已成功入库",
@@ -339,6 +346,12 @@ async def checkout_item(house: str, room: str, location: str, item_name: str, no
         })
         storage.update_index_entry(item_name, house, room, location)
 
+        # 追加操作日志到索引文件
+        storage.append_index_log(
+            f"[{now}] [取出] 物品名称: {item_name} ｜ "
+            f"位置: {house}/{room}/{location}{note_text}"
+        )
+
         return {
             "success": True,
             "message": f"物品 '{item_name}' 取出记录已保存",
@@ -364,6 +377,12 @@ async def destroy_item(house: str, room: str, location: str, item_name: str, not
         })
         # 更新索引中的状态
         storage.update_index_entry(item_name, house, room, location)
+
+        # 追加操作日志到索引文件
+        storage.append_index_log(
+            f"[{now}] [销毁] 物品名称: {item_name} ｜ "
+            f"位置: {house}/{room}/{location}{note_text}"
+        )
 
         return {
             "success": True,
@@ -413,6 +432,12 @@ async def transfer_item(house: str, room: str, location: str, item_name: str, da
         storage.remove_index_entry(item_name, house, room)
         storage.update_index_entry(item_name, data.new_house, data.new_room, data.new_location)
 
+        # 追加操作日志到索引文件
+        storage.append_index_log(
+            f"[{now}] [转移] 物品名称: {item_name} ｜ "
+            f"原位置: {old_relative} → 新位置: {new_relative}{note_text}"
+        )
+
         return {
             "success": True,
             "message": f"物品 '{item_name}' 已从 {old_relative} 转移至 {new_relative}",
@@ -434,6 +459,13 @@ async def delete_item(house: str, room: str, location: str, item_name: str):
 
         shutil.rmtree(str(item_path))
         storage.remove_index_entry(item_name, house, room)
+
+        # 追加操作日志到索引文件
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(
+            f"[{now}] [删除] 物品名称: {item_name} ｜ "
+            f"位置: {house}/{room}/{location} ｜ 警告: 该物品所有文件已被彻底删除"
+        )
 
         return {
             "success": True,
