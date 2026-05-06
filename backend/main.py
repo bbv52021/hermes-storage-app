@@ -349,6 +349,81 @@ async def checkout_item(house: str, room: str, location: str, item_name: str, no
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/items/{house}/{room}/{location}/{item_name}/destroy")
+async def destroy_item(house: str, room: str, location: str, item_name: str, note: str = ""):
+    """物品销毁记录（标记为已销毁，不删除文件）"""
+    try:
+        item_path = storage.get_item_path(house, room, location, item_name)
+        if not item_path.exists():
+            raise HTTPException(status_code=404, detail="物品不存在")
+
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        note_text = f"，备注: {note}" if note else ""
+        storage.update_ledger(item_path, {
+            "历次变更记录": f"{now} 物品已销毁{note_text}",
+        })
+        # 更新索引中的状态
+        storage.update_index_entry(item_name, house, room, location)
+
+        return {
+            "success": True,
+            "message": f"物品 '{item_name}' 已标记为销毁",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/items/{house}/{room}/{location}/{item_name}/transfer")
+async def transfer_item(house: str, room: str, location: str, item_name: str, data: ItemMigrate, note: str = ""):
+    """物品转移位置"""
+    try:
+        item_path = storage.get_item_path(house, room, location, item_name)
+        if not item_path.exists():
+            raise HTTPException(status_code=404, detail="物品不存在")
+
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        new_path = storage.get_item_path(data.new_house, data.new_room, data.new_location, item_name)
+
+        old_relative = f"{house}/{room}/{location}"
+        new_relative = f"{data.new_house}/{data.new_room}/{data.new_location}"
+
+        if old_relative == new_relative:
+            raise HTTPException(status_code=400, detail="新位置与当前位置相同")
+
+        # 在原台账记录转移
+        note_text = f"，备注: {note}" if note else ""
+        storage.update_ledger(item_path, {
+            "历次变更记录": f"{now} 物品已转移至: {new_relative}{note_text}",
+        })
+
+        # 执行物理迁移
+        storage.ensure_dir(new_path.parent)
+        shutil.move(str(item_path), str(new_path))
+
+        # 更新新位置的台账
+        storage.update_ledger(new_path, {
+            "所属房屋": data.new_house,
+            "所属房间": data.new_room,
+            "具体存放位置": data.new_location,
+        })
+
+        # 更新全局索引：删除旧记录，添加新记录
+        storage.remove_index_entry(item_name, house, room)
+        storage.update_index_entry(item_name, data.new_house, data.new_room, data.new_location)
+
+        return {
+            "success": True,
+            "message": f"物品 '{item_name}' 已从 {old_relative} 转移至 {new_relative}",
+            "new_path": str(new_path.relative_to(STORAGE_ROOT)),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.delete("/api/items/{house}/{room}/{location}/{item_name}")
 async def delete_item(house: str, room: str, location: str, item_name: str):
     """删除物品（整个目录）"""
@@ -372,9 +447,20 @@ async def delete_item(house: str, room: str, location: str, item_name: str):
 
 @app.get("/api/search")
 async def search_items(keyword: str = Query(..., min_length=1)):
-    """搜索物品"""
+    """搜索物品（含图片信息）"""
     try:
         results = storage.search_items(keyword)
+        # 为每个结果附加图片列表
+        for item in results:
+            item_path = storage.get_item_path(
+                item["所属房屋"], item["所属房间"],
+                item["具体存放位置"], item["物品名称"]
+            )
+            item["images"] = storage.get_item_images(item_path)
+            item["image_count"] = len(item["images"])
+            # 读取台账获取描述
+            ledger = storage.read_ledger(item_path)
+            item["description"] = ledger.get("物品描述/备注", "") if ledger else ""
         return {"success": True, "data": results, "total": len(results)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
