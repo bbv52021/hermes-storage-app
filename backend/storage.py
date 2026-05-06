@@ -277,11 +277,12 @@ def get_directory_tree(root: Path = None, max_depth: int = 4) -> dict:
                     if not item_dir.is_dir() or item_dir.name.startswith("."):
                         continue
                     ledger = read_ledger(item_dir)
-                    image_count = len(get_item_images(item_dir))
+                    images = get_item_images(item_dir)
                     location["items"].append({
                         "name": item_dir.name,
                         "description": ledger.get("物品描述/备注", "") if ledger else "",
-                        "image_count": image_count,
+                        "image_count": len(images),
+                        "images": images,
                         "last_updated": ledger.get("最后更新时间", "") if ledger else "",
                     })
                 room["locations"].append(location)
