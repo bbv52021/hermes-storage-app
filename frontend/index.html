@@ -1131,7 +1131,8 @@ function renderThumbStrip(items) {
             thumbs.push(imgUrl);
         }
     });
-    if (thumbs.length === 0) return '';
+    // 如果少于 2 张图片，不显示缩略图条（只显示封面图即可）
+    if (thumbs.length < 2) return '';
     const show = thumbs.slice(0, 4);
     const extra = thumbs.length - 4;
     let html = '<div class="thumb-strip">';
