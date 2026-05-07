@@ -396,3 +396,146 @@ def search_items(keyword: str) -> list[dict]:
                                     })
 
     return results
+
+
+# ========== 目录层级操作（房屋/房间/位置）==========
+
+def get_house_path(house: str) -> Path:
+    """获取房屋目录路径"""
+    house = sanitize_name(house)
+    return Path(STORAGE_ROOT) / house
+
+
+def get_room_path(house: str, room: str) -> Path:
+    """获取房间目录路径"""
+    house = sanitize_name(house)
+    room = sanitize_name(room)
+    return Path(STORAGE_ROOT) / house / room
+
+
+def get_location_path(house: str, room: str, location: str) -> Path:
+    """获取位置目录路径"""
+    house = sanitize_name(house)
+    room = sanitize_name(room)
+    location = sanitize_name(location)
+    return Path(STORAGE_ROOT) / house / room / location
+
+
+def check_duplicate_name(parent_path: Path, new_name: str) -> bool:
+    """检查同级是否有同名目录"""
+    if not parent_path.exists():
+        return False
+    new_path = parent_path / sanitize_name(new_name)
+    return new_path.exists()
+
+
+def rename_house(old_name: str, new_name: str):
+    """重命名房屋"""
+    old_path = get_house_path(old_name)
+    new_path = get_house_path(new_name)
+    if not old_path.exists():
+        raise ValueError(f"房屋 '{old_name}' 不存在")
+    if new_path.exists():
+        raise ValueError(f"房屋 '{new_name}' 已存在")
+    shutil.move(str(old_path), str(new_path))
+    return new_path
+
+
+def rename_room(house: str, old_room: str, new_room: str):
+    """重命名房间"""
+    old_path = get_room_path(house, old_room)
+    new_path = get_room_path(house, new_room)
+    if not old_path.exists():
+        raise ValueError(f"房间 '{old_room}' 不存在")
+    if new_path.exists():
+        raise ValueError(f"房间 '{new_room}' 已存在")
+    shutil.move(str(old_path), str(new_path))
+    return new_path
+
+
+def rename_location(house: str, room: str, old_location: str, new_location: str):
+    """重命名位置"""
+    old_path = get_location_path(house, room, old_location)
+    new_path = get_location_path(house, room, new_location)
+    if not old_path.exists():
+        raise ValueError(f"位置 '{old_location}' 不存在")
+    if new_path.exists():
+        raise ValueError(f"位置 '{new_location}' 已存在")
+    shutil.move(str(old_path), str(new_path))
+    return new_path
+
+
+def delete_house(house: str):
+    """删除房屋（及其下所有内容）"""
+    house_path = get_house_path(house)
+    if not house_path.exists():
+        raise ValueError(f"房屋 '{house}' 不存在")
+    shutil.rmtree(str(house_path))
+
+
+def delete_room(house: str, room: str):
+    """删除房间（及其下所有内容）"""
+    room_path = get_room_path(house, room)
+    if not room_path.exists():
+        raise ValueError(f"房间 '{room}' 不存在")
+    shutil.rmtree(str(room_path))
+
+
+def delete_location(house: str, room: str, location: str):
+    """删除位置（及其下所有内容）"""
+    loc_path = get_location_path(house, room, location)
+    if not loc_path.exists():
+        raise ValueError(f"位置 '{location}' 不存在")
+    shutil.rmtree(str(loc_path))
+
+
+# ========== 目录图片管理 ===========
+
+def save_folder_image(folder_path: Path, image_data: bytes, original_filename: str) -> str:
+    """
+    保存图片到目录（房屋/房间/位置），图片名固定为目录名
+    返回保存后的文件名
+    """
+    ensure_dir(folder_path)
+    folder_name = folder_path.name
+    
+    # 确定扩展名
+    ext = Path(original_filename).suffix.lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        ext = ".jpg"
+    
+    # 固定命名：目录名.jpg
+    filename = f"{folder_name}{ext}"
+    filepath = folder_path / filename
+    filepath.write_bytes(image_data)
+    
+    return filename
+
+
+def get_folder_image(folder_path: Path) -> Optional[str]:
+    """
+    获取目录的图片文件名（固定为目录名.*）
+    返回文件名或None
+    """
+    if not folder_path.exists():
+        return None
+    folder_name = folder_path.name
+    for ext in ALLOWED_IMAGE_EXTENSIONS:
+        img_path = folder_path / f"{folder_name}{ext}"
+        if img_path.exists():
+            return img_path.name
+    return None
+
+
+def delete_folder_image(folder_path: Path) -> bool:
+    """删除目录的图片"""
+    if not folder_path.exists():
+        return False
+    folder_name = folder_path.name
+    deleted = False
+    for ext in ALLOWED_IMAGE_EXTENSIONS:
+        img_path = folder_path / f"{folder_name}{ext}"
+        if img_path.exists():
+            img_path.unlink()
+            deleted = True
+    return deleted
