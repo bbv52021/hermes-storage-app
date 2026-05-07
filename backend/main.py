@@ -477,6 +477,393 @@ async def delete_item(house: str, room: str, location: str, item_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ========== 目录层级操作 API（房屋/房间/位置）==========
+
+class RenameRequest(BaseModel):
+    new_name: str
+
+
+@app.get("/api/houses/{house}/check")
+async def check_house_duplicate(house: str, new_name: str):
+    """检查房屋新名称是否重复"""
+    try:
+        house_path = storage.get_house_path(house)
+        is_dup = storage.check_duplicate_name(house_path.parent, new_name)
+        return {"success": True, "duplicate": is_dup}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/houses/{house}")
+async def rename_house_api(house: str, data: RenameRequest):
+    """重命名房屋"""
+    try:
+        # 检查是否同名
+        if storage.check_duplicate_name(Path(storage.STORAGE_ROOT), data.new_name):
+            raise HTTPException(status_code=409, detail=f"房屋 '{data.new_name}' 已存在")
+        
+        storage.rename_house(house, data.new_name)
+        
+        # 更新索引中所有该房屋下的物品
+        items = storage.read_global_index()
+        for item in items:
+            if item["所属房屋"] == house:
+                item["所属房屋"] = data.new_name
+        storage.write_global_index(items)
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(
+            f"[{now}] [重命名房屋] '{house}' → '{data.new_name}'"
+        )
+        
+        return {"success": True, "message": f"房屋 '{house}' 已重命名为 '{data.new_name}'"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/houses/{house}")
+async def delete_house_api(house: str):
+    """删除房屋（及其下所有内容）"""
+    try:
+        # 先删除索引中该房屋的所有物品
+        items = storage.read_global_index()
+        items = [i for i in items if i["所属房屋"] != house]
+        storage.write_global_index(items)
+        
+        # 删除房屋目录
+        storage.delete_house(house)
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(
+            f"[{now}] [删除房屋] '{house}' 及其下所有物品"
+        )
+        
+        return {"success": True, "message": f"房屋 '{house}' 已删除"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/houses/{house}/rooms/{room}/check")
+async def check_room_duplicate(house: str, room: str, new_name: str):
+    """检查房间新名称是否重复"""
+    try:
+        house_path = storage.get_house_path(house)
+        is_dup = storage.check_duplicate_name(house_path, new_name)
+        return {"success": True, "duplicate": is_dup}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/houses/{house}/rooms/{room}")
+async def rename_room_api(house: str, room: str, data: RenameRequest):
+    """重命名房间"""
+    try:
+        house_path = storage.get_house_path(house)
+        # 检查是否同名
+        if storage.check_duplicate_name(house_path, data.new_name):
+            raise HTTPException(status_code=409, detail=f"房间 '{data.new_name}' 已存在")
+        
+        storage.rename_room(house, room, data.new_name)
+        
+        # 更新索引中所有该房间下的物品
+        items = storage.read_global_index()
+        for item in items:
+            if item["所属房屋"] == house and item["所属房间"] == room:
+                item["所属房间"] = data.new_name
+        storage.write_global_index(items)
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(
+            f"[{now}] [重命名房间] '{house}/{room}' → '{house}/{data.new_name}'"
+        )
+        
+        return {"success": True, "message": f"房间 '{room}' 已重命名为 '{data.new_name}'"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/houses/{house}/rooms/{room}")
+async def delete_room_api(house: str, room: str):
+    """删除房间（及其下所有内容）"""
+    try:
+        # 先删除索引中该房间的所有物品
+        items = storage.read_global_index()
+        items = [i for i in items if not (i["所属房屋"] == house and i["所属房间"] == room)]
+        storage.write_global_index(items)
+        
+        # 删除房间目录
+        storage.delete_room(house, room)
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(
+            f"[{now}] [删除房间] '{house}/{room}' 及其下所有物品"
+        )
+        
+        return {"success": True, "message": f"房间 '{room}' 已删除"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/houses/{house}/rooms/{room}/locations/{location}/check")
+async def check_location_duplicate(house: str, room: str, location: str, new_name: str):
+    """检查位置新名称是否重复"""
+    try:
+        room_path = storage.get_room_path(house, room)
+        is_dup = storage.check_duplicate_name(room_path, new_name)
+        return {"success": True, "duplicate": is_dup}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/houses/{house}/rooms/{room}/locations/{location}")
+async def rename_location_api(house: str, room: str, location: str, data: RenameRequest):
+    """重命名位置"""
+    try:
+        room_path = storage.get_room_path(house, room)
+        # 检查是否同名
+        if storage.check_duplicate_name(room_path, data.new_name):
+            raise HTTPException(status_code=409, detail=f"位置 '{data.new_name}' 已存在")
+        
+        storage.rename_location(house, room, location, data.new_name)
+        
+        # 更新索引中所有该位置下的物品
+        items = storage.read_global_index()
+        for item in items:
+            if item["所属房屋"] == house and item["所属房间"] == room and item["具体存放位置"] == location:
+                item["具体存放位置"] = data.new_name
+        storage.write_global_index(items)
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(
+            f"[{now}] [重命名位置] '{house}/{room}/{location}' → '{house}/{room}/{data.new_name}'"
+        )
+        
+        return {"success": True, "message": f"位置 '{location}' 已重命名为 '{data.new_name}'"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/houses/{house}/rooms/{room}/locations/{location}")
+async def delete_location_api(house: str, room: str, location: str):
+    """删除位置（及其下所有内容）"""
+    try:
+        # 先删除索引中该位置的所有物品
+        items = storage.read_global_index()
+        items = [i for i in items if not (
+            i["所属房屋"] == house and i["所属房间"] == room and i["具体存放位置"] == location
+        )]
+        storage.write_global_index(items)
+        
+        # 删除位置目录
+        storage.delete_location(house, room, location)
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(
+            f"[{now}] [删除位置] '{house}/{room}/{location}' 及其下所有物品"
+        )
+        
+        return {"success": True, "message": f"位置 '{location}' 已删除"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========== 目录图片管理 API ==========
+
+@app.get("/api/houses/{house}/image")
+async def get_house_image(house: str):
+    """获取房屋图片"""
+    try:
+        house_path = storage.get_house_path(house)
+        img_name = storage.get_folder_image(house_path)
+        if not img_name:
+            raise HTTPException(status_code=404, detail="房屋没有图片")
+        return FileResponse(str(house_path / img_name))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/houses/{house}/image")
+async def upload_house_image(house: str, file: UploadFile = File(...)):
+    """上传房屋图片（覆盖）"""
+    try:
+        house_path = storage.get_house_path(house)
+        if not house_path.exists():
+            raise HTTPException(status_code=404, detail="房屋不存在")
+        
+        image_data = await file.read()
+        filename = storage.save_folder_image(house_path, image_data, file.filename or "image.jpg")
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(f"[{now}] [上传房屋图片] '{house}'")
+        
+        return {"success": True, "message": "图片已上传", "filename": filename}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/houses/{house}/image")
+async def delete_house_image(house: str):
+    """删除房屋图片"""
+    try:
+        house_path = storage.get_house_path(house)
+        deleted = storage.delete_folder_image(house_path)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="房屋没有图片")
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(f"[{now}] [删除房屋图片] '{house}'")
+        
+        return {"success": True, "message": "图片已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/houses/{house}/rooms/{room}/image")
+async def get_room_image(house: str, room: str):
+    """获取房间图片"""
+    try:
+        room_path = storage.get_room_path(house, room)
+        img_name = storage.get_folder_image(room_path)
+        if not img_name:
+            raise HTTPException(status_code=404, detail="房间没有图片")
+        return FileResponse(str(room_path / img_name))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/houses/{house}/rooms/{room}/image")
+async def upload_room_image(house: str, room: str, file: UploadFile = File(...)):
+    """上传房间图片（覆盖）"""
+    try:
+        room_path = storage.get_room_path(house, room)
+        if not room_path.exists():
+            raise HTTPException(status_code=404, detail="房间不存在")
+        
+        image_data = await file.read()
+        filename = storage.save_folder_image(room_path, image_data, file.filename or "image.jpg")
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(f"[{now}] [上传房间图片] '{house}/{room}'")
+        
+        return {"success": True, "message": "图片已上传", "filename": filename}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/houses/{house}/rooms/{room}/image")
+async def delete_room_image(house: str, room: str):
+    """删除房间图片"""
+    try:
+        room_path = storage.get_room_path(house, room)
+        deleted = storage.delete_folder_image(room_path)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="房间没有图片")
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(f"[{now}] [删除房间图片] '{house}/{room}'")
+        
+        return {"success": True, "message": "图片已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/houses/{house}/rooms/{room}/locations/{location}/image")
+async def get_location_image(house: str, room: str, location: str):
+    """获取位置图片"""
+    try:
+        loc_path = storage.get_location_path(house, room, location)
+        img_name = storage.get_folder_image(loc_path)
+        if not img_name:
+            raise HTTPException(status_code=404, detail="位置没有图片")
+        return FileResponse(str(loc_path / img_name))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/houses/{house}/rooms/{room}/locations/{location}/image")
+async def upload_location_image(house: str, room: str, location: str, file: UploadFile = File(...)):
+    """上传位置图片（覆盖）"""
+    try:
+        loc_path = storage.get_location_path(house, room, location)
+        if not loc_path.exists():
+            raise HTTPException(status_code=404, detail="位置不存在")
+        
+        image_data = await file.read()
+        filename = storage.save_folder_image(loc_path, image_data, file.filename or "image.jpg")
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(f"[{now}] [上传位置图片] '{house}/{room}/{location}'")
+        
+        return {"success": True, "message": "图片已上传", "filename": filename}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/houses/{house}/rooms/{room}/locations/{location}/image")
+async def delete_location_image(house: str, room: str, location: str):
+    """删除位置图片"""
+    try:
+        loc_path = storage.get_location_path(house, room, location)
+        deleted = storage.delete_folder_image(loc_path)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="位置没有图片")
+        
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(f"[{now}] [删除位置图片] '{house}/{room}/{location}'")
+        
+        return {"success": True, "message": "图片已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/search")
 async def search_items(keyword: str = Query(..., min_length=1)):
     """搜索物品（含图片信息）"""
