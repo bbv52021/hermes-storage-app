@@ -295,12 +295,15 @@ def save_image(item_dir: Path, image_data: bytes, original_filename: str) -> str
 
 
 def get_item_images(item_dir: Path) -> list[str]:
-    """获取物品目录下所有图片文件名"""
+    """获取物品目录下所有图片文件名（排除与目录同名的封面图）"""
     if not item_dir.exists():
         return []
     images = []
+    parent_stem = item_dir.name
     for ext in ALLOWED_IMAGE_EXTENSIONS:
-        images.extend(f.name for f in item_dir.glob(f"*{ext}"))
+        for f in item_dir.glob(f"*{ext}"):
+            if f.stem != parent_stem:
+                images.append(f.name)
     return sorted(images)
 
 
@@ -324,13 +327,20 @@ def get_directory_tree(root: Path = None, max_depth: int = 4) -> dict:
         for room_dir in sorted(house_dir.iterdir()):
             if not room_dir.is_dir() or room_dir.name.startswith(".") or room_dir.name in SYSTEM_DIRS:
                 continue
+            # 跳过与父目录同名的条目（如封面图文件、同名目录）
+            if room_dir.stem == house_dir.name:
+                continue
             room = {"name": room_dir.name, "locations": []}
             for loc_dir in sorted(room_dir.iterdir()):
                 if not loc_dir.is_dir() or loc_dir.name.startswith(".") or loc_dir.name in SYSTEM_DIRS:
                     continue
+                if loc_dir.stem == room_dir.name:
+                    continue
                 location = {"name": loc_dir.name, "items": []}
                 for item_dir in sorted(loc_dir.iterdir()):
                     if not item_dir.is_dir() or item_dir.name.startswith("."):
+                        continue
+                    if item_dir.stem == loc_dir.name:
                         continue
                     ledger = read_ledger(item_dir)
                     images = get_item_images(item_dir)
