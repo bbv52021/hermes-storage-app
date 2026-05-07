@@ -313,17 +313,20 @@ def get_directory_tree(root: Path = None, max_depth: int = 4) -> dict:
     if not root.exists():
         return {"houses": []}
 
+    # 系统目录黑名单
+    SYSTEM_DIRS = {"@eaDir", "#recycle", "@SynoResource", "@SynoEAStream"}
+    
     houses = []
     for house_dir in sorted(root.iterdir()):
-        if not house_dir.is_dir() or house_dir.name.startswith("."):
+        if not house_dir.is_dir() or house_dir.name.startswith(".") or house_dir.name in SYSTEM_DIRS:
             continue
         house = {"name": house_dir.name, "rooms": []}
         for room_dir in sorted(house_dir.iterdir()):
-            if not room_dir.is_dir() or room_dir.name.startswith("."):
+            if not room_dir.is_dir() or room_dir.name.startswith(".") or room_dir.name in SYSTEM_DIRS:
                 continue
             room = {"name": room_dir.name, "locations": []}
             for loc_dir in sorted(room_dir.iterdir()):
-                if not loc_dir.is_dir() or loc_dir.name.startswith("."):
+                if not loc_dir.is_dir() or loc_dir.name.startswith(".") or loc_dir.name in SYSTEM_DIRS:
                     continue
                 location = {"name": loc_dir.name, "items": []}
                 for item_dir in sorted(loc_dir.iterdir()):
