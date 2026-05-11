@@ -906,25 +906,25 @@
 <div class="main-content">
     <!-- 统计卡片 -->
     <div class="stats-grid" id="statsGrid">
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer;" onclick="showAllHousesList()" title="点击查看所有房屋">
             <div class="stat-icon blue">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
             </div>
             <div class="stat-info"><h3 id="statHouses">-</h3><p>房屋/区域</p></div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer;" onclick="showAllRoomsList()" title="点击查看所有房间">
             <div class="stat-icon green">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </div>
             <div class="stat-info"><h3 id="statRooms">-</h3><p>房间</p></div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer;" onclick="showAllItemsList()" title="点击查看所有物品">
             <div class="stat-icon orange">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
             </div>
             <div class="stat-info"><h3 id="statItems">-</h3><p>物品总数</p></div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" style="cursor:pointer;" onclick="showIndexText()" title="点击查看索引记录">
             <div class="stat-icon purple">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
@@ -1019,6 +1019,7 @@
         </div>
         <div class="modal-body" id="detailBody"></div>
         <div class="modal-footer" style="flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="editCurrentItem()">修改信息</button>
             <button class="btn btn-warning btn-sm" onclick="checkoutCurrentItem()">记录取出</button>
             <button class="btn btn-outline btn-sm" onclick="transferCurrentItem()">转移位置</button>
             <button class="btn btn-danger btn-sm" onclick="destroyCurrentItem()">销毁物品</button>
@@ -1792,6 +1793,122 @@ async function refreshIndex() {
     } catch (e) {
         showToast('刷新索引失败: ' + e.message, 'error');
     }
+}
+
+// ========== 修改物品信息 ==========
+
+async function editCurrentItem() {
+    if (!currentDetail) return;
+    const { house, room, location, name } = currentDetail;
+    const desc = prompt('修改物品描述/备注：', currentDetail.ledger?.['物品描述/备注'] || '');
+    if (desc === null) return; // 用户取消
+    try {
+        await api('PUT', `/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}`, { description: desc });
+        showToast('物品信息已更新', 'success');
+        closeModal('detailModal');
+        showItemDetail(house, room, location, name);
+    } catch (e) {
+        showToast('修改失败: ' + e.message, 'error');
+    }
+}
+
+// ========== 统计卡片点击：查看列表 ==========
+
+async function showAllHousesList() {
+    try {
+        const res = await api('GET', '/api/tree');
+        const houses = res.data || [];
+        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>房屋名称</th><th>房间数</th><th>物品数</th></tr></thead><tbody>';
+        houses.forEach(h => {
+            const itemCount = (h.rooms || []).reduce((s, r) => s + (r.locations || []).reduce((s2, l) => s2 + (l.items || []).length, 0), 0);
+            html += `<tr style="cursor:pointer;" onclick="navigateToHouse('${escapeHtml(h.name)}')"><td>${escapeHtml(h.name)}</td><td>${(h.rooms || []).length}</td><td>${itemCount}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('detailBody').innerHTML = html;
+        document.getElementById('detailTitle').textContent = '所有房屋';
+        document.querySelector('#detailModal .modal-footer').style.display = 'none';
+        openModal('detailModal');
+        // 恢复 footer 显示
+        const origClose = closeModal;
+        const onHidden = () => { document.querySelector('#detailModal .modal-footer').style.display = ''; };
+        document.getElementById('detailModal').addEventListener('transitionend', onHidden, { once: true });
+    } catch (e) {
+        showToast('加载失败: ' + e.message, 'error');
+    }
+}
+
+async function showAllRoomsList() {
+    try {
+        const res = await api('GET', '/api/tree');
+        const houses = res.data || [];
+        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>房间名称</th><th>所属房屋</th><th>位置数</th></tr></thead><tbody>';
+        houses.forEach(h => {
+            (h.rooms || []).forEach(r => {
+                html += `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(h.name)}</td><td>${(r.locations || []).length}</td></tr>`;
+            });
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('detailBody').innerHTML = html;
+        document.getElementById('detailTitle').textContent = '所有房间';
+        document.querySelector('#detailModal .modal-footer').style.display = 'none';
+        openModal('detailModal');
+        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
+    } catch (e) {
+        showToast('加载失败: ' + e.message, 'error');
+    }
+}
+
+async function showAllItemsList() {
+    try {
+        const res = await api('GET', '/api/tree');
+        const houses = res.data || [];
+        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>物品名称</th><th>存放位置</th></tr></thead><tbody>';
+        houses.forEach(h => {
+            (h.rooms || []).forEach(r => {
+                (r.locations || []).forEach(l => {
+                    (l.items || []).forEach(i => {
+                        html += `<tr style="cursor:pointer;" onclick="closeModal('detailModal');showItemDetail('${escapeHtml(h.name)}','${escapeHtml(r.name)}','${escapeHtml(l.name)}','${escapeHtml(i.name)}')"><td>${escapeHtml(i.name)}</td><td>${escapeHtml(h.name)} / ${escapeHtml(r.name)} / ${escapeHtml(l.name)}</td></tr>`;
+                    });
+                });
+            });
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('detailBody').innerHTML = html;
+        document.getElementById('detailTitle').textContent = '所有物品';
+        document.querySelector('#detailModal .modal-footer').style.display = 'none';
+        openModal('detailModal');
+        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
+    } catch (e) {
+        showToast('加载失败: ' + e.message, 'error');
+    }
+}
+
+// ========== 索引记录文本查看 ==========
+
+async function showIndexText() {
+    try {
+        const res = await api('GET', '/api/index');
+        const items = res.data || [];
+        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>#</th><th>物品名称</th><th>存放位置</th></tr></thead><tbody>';
+        items.forEach((item, i) => {
+            const name = item.item_name || item['物品名称'] || '未知';
+            const loc = (item.house || item['所属房屋'] || '') + ' / ' + (item.room || item['所属房间'] || '') + ' / ' + (item.location || item['具体存放位置'] || '');
+            html += `<tr><td>${i + 1}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(loc)}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('detailBody').innerHTML = html;
+        document.getElementById('detailTitle').textContent = `物品总索引清单 (${items.length} 条)`;
+        document.querySelector('#detailModal .modal-footer').style.display = 'none';
+        openModal('detailModal');
+        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
+    } catch (e) {
+        showToast('加载索引失败: ' + e.message, 'error');
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ========== 目录层级操作（房屋/房间/位置）==========
