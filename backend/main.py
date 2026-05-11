@@ -267,6 +267,28 @@ async def upload_item_images(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/api/items/{house}/{room}/{location}/{item_name}/images/{image_name}")
+async def delete_item_image(house: str, room: str, location: str, item_name: str, image_name: str):
+    """删除物品单张图片"""
+    try:
+        item_path = storage.get_item_path(house, room, location, item_name)
+        image_path = item_path / image_name
+        if not image_path.exists():
+            raise HTTPException(status_code=404, detail="图片不存在")
+
+        image_path.unlink()
+
+        # 追加日志
+        now = datetime.now().strftime(DATETIME_FORMAT)
+        storage.append_index_log(f"[{now}] [删除物品图片] '{house}/{room}/{location}/{item_name}' - {image_name}")
+
+        return {"success": True, "message": f"图片 {image_name} 已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.put("/api/items/{house}/{room}/{location}/{item_name}")
 async def update_item(house: str, room: str, location: str, item_name: str, data: ItemUpdate):
     """更新物品信息"""

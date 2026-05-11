@@ -1057,6 +1057,38 @@
     </div>
 </div>
 
+<!-- 编辑物品信息模态框 -->
+<div class="modal-overlay" id="editItemModal">
+    <div class="modal" style="max-width:640px;">
+        <div class="modal-header">
+            <h2>修改物品信息</h2>
+            <button class="modal-close" onclick="closeModal('editItemModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>物品名称</label>
+                <input type="text" id="editItemName" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;">
+            </div>
+            <div class="form-group">
+                <label>物品描述/备注</label>
+                <textarea id="editItemDesc" rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;resize:vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>现有图片（点击 × 删除）</label>
+                <div id="editExistingImages" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
+            </div>
+            <div class="form-group">
+                <label>添加新图片</label>
+                <input type="file" id="editNewImages" multiple accept="image/*" style="margin-top:4px;">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('editItemModal')">取消</button>
+            <button class="btn btn-primary" onclick="submitEditItem()">保存修改</button>
+        </div>
+    </div>
+</div>
+
 <!-- Toast容器 -->
 <div class="toast-container" id="toastContainer"></div>
 
@@ -1797,16 +1829,76 @@ async function refreshIndex() {
 
 // ========== 修改物品信息 ==========
 
+let editItemData = null; // 暂存编辑中的物品信息
+
 async function editCurrentItem() {
     if (!currentDetail) return;
-    const { house, room, location, name } = currentDetail;
-    const desc = prompt('修改物品描述/备注：', currentDetail.ledger?.['物品描述/备注'] || '');
-    if (desc === null) return; // 用户取消
+    const { house, room, location, name, images, ledger } = currentDetail;
+    editItemData = { house, room, location, name, images: [...(images || [])] };
+
+    document.getElementById('editItemName').value = name;
+    document.getElementById('editItemDesc').value = ledger?.['物品描述/备注'] || '';
+    document.getElementById('editNewImages').value = '';
+
+    // 渲染已有图片
+    renderEditImages();
+    openModal('editItemModal');
+}
+
+function renderEditImages() {
+    const container = document.getElementById('editExistingImages');
+    if (!editItemData || editItemData.images.length === 0) {
+        container.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">暂无图片</span>';
+        return;
+    }
+    const { house, room, location, name } = editItemData;
+    container.innerHTML = editItemData.images.map((img, i) => `
+        <div style="position:relative;display:inline-block;">
+            <img src="/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}/images/${encodeURIComponent(img)}"
+                 style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border);"
+                 onerror="this.style.display='none'">
+            <button onclick="deleteEditImage(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:white;border:none;cursor:pointer;font-size:12px;line-height:20px;text-align:center;">×</button>
+        </div>
+    `).join('');
+}
+
+async function deleteEditImage(index) {
+    if (!editItemData) return;
+    const { house, room, location, name, images } = editItemData;
+    const imageName = images[index];
+    if (!confirm(`确定删除图片「${imageName}」吗？`)) return;
     try {
+        await api('DELETE', `/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}/images/${encodeURIComponent(imageName)}`);
+        editItemData.images.splice(index, 1);
+        renderEditImages();
+        showToast('图片已删除', 'success');
+    } catch (e) {
+        showToast('删除失败: ' + e.message, 'error');
+    }
+}
+
+async function submitEditItem() {
+    if (!editItemData) return;
+    const { house, room, location, name } = editItemData;
+    const newName = document.getElementById('editItemName').value.trim();
+    const desc = document.getElementById('editItemDesc').value.trim();
+    if (!newName) { showToast('物品名称不能为空', 'error'); return; }
+
+    try {
+        // 更新描述
         await api('PUT', `/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(name)}`, { description: desc });
+
+        // 上传新图片
+        const fileInput = document.getElementById('editNewImages');
+        if (fileInput.files.length > 0) {
+            const fd = new FormData();
+            for (const f of fileInput.files) fd.append('files', f);
+            await api('POST', `/api/items/${encodeURIComponent(house)}/${encodeURIComponent(room)}/${encodeURIComponent(location)}/${encodeURIComponent(newName)}/images`, fd);
+        }
+
+        closeModal('editItemModal');
         showToast('物品信息已更新', 'success');
-        closeModal('detailModal');
-        showItemDetail(house, room, location, name);
+        showItemDetail(house, room, location, newName);
     } catch (e) {
         showToast('修改失败: ' + e.message, 'error');
     }
