@@ -1906,11 +1906,6 @@ async function showIndexText() {
     }
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 // ========== 目录层级操作（房屋/房间/位置）==========
 
 // 显示重命名模态框
