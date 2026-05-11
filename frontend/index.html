@@ -177,6 +177,7 @@
         .stat-icon svg { width: 24px; height: 24px; }
         .stat-icon.blue { background: #dbeafe; color: #2563eb; }
         .stat-icon.green { background: #dcfce7; color: #16a34a; }
+        .stat-icon.teal { background: #ccfbf1; color: #0d9488; }
         .stat-icon.orange { background: #fef3c7; color: #d97706; }
         .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
 
@@ -910,7 +911,7 @@
             <div class="stat-icon blue">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
             </div>
-            <div class="stat-info"><h3 id="statHouses">-</h3><p>房屋/区域</p></div>
+            <div class="stat-info"><h3 id="statHouses">-</h3><p>房屋</p></div>
         </div>
         <div class="stat-card" style="cursor:pointer;" onclick="showAllRoomsList()" title="点击查看所有房间">
             <div class="stat-icon green">
@@ -918,11 +919,17 @@
             </div>
             <div class="stat-info"><h3 id="statRooms">-</h3><p>房间</p></div>
         </div>
+        <div class="stat-card" style="cursor:pointer;" onclick="showAllLocationsList()" title="点击查看所有位置">
+            <div class="stat-icon teal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="stat-info"><h3 id="statLocations">-</h3><p>位置</p></div>
+        </div>
         <div class="stat-card" style="cursor:pointer;" onclick="showAllItemsList()" title="点击查看所有物品">
             <div class="stat-icon orange">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
             </div>
-            <div class="stat-info"><h3 id="statItems">-</h3><p>物品总数</p></div>
+            <div class="stat-info"><h3 id="statItems">-</h3><p>物品</p></div>
         </div>
         <div class="stat-card" style="cursor:pointer;" onclick="showIndexText()" title="点击查看索引记录">
             <div class="stat-icon purple">
@@ -1123,6 +1130,7 @@ async function loadStats() {
         const res = await api('GET', '/api/stats');
         document.getElementById('statHouses').textContent = res.data.total_houses;
         document.getElementById('statRooms').textContent = res.data.total_rooms;
+        document.getElementById('statLocations').textContent = res.data.total_locations;
         document.getElementById('statItems').textContent = res.data.total_items;
         document.getElementById('statIndex').textContent = res.data.index_count;
     } catch (e) { console.error('加载统计失败:', e); }
@@ -1942,6 +1950,29 @@ async function showAllRoomsList() {
         html += '</tbody></table></div>';
         document.getElementById('detailBody').innerHTML = html;
         document.getElementById('detailTitle').textContent = '所有房间';
+        document.querySelector('#detailModal .modal-footer').style.display = 'none';
+        openModal('detailModal');
+        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
+    } catch (e) {
+        showToast('加载失败: ' + e.message, 'error');
+    }
+}
+
+async function showAllLocationsList() {
+    try {
+        const res = await api('GET', '/api/tree');
+        const houses = res.data || [];
+        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>位置名称</th><th>所属房屋</th><th>所属房间</th><th>物品数</th></tr></thead><tbody>';
+        houses.forEach(h => {
+            (h.rooms || []).forEach(r => {
+                (r.locations || []).forEach(l => {
+                    html += `<tr><td>${escapeHtml(l.name)}</td><td>${escapeHtml(h.name)}</td><td>${escapeHtml(r.name)}</td><td>${(l.items || []).length}</td></tr>`;
+                });
+            });
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('detailBody').innerHTML = html;
+        document.getElementById('detailTitle').textContent = '所有位置';
         document.querySelector('#detailModal .modal-footer').style.display = 'none';
         openModal('detailModal');
         document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
