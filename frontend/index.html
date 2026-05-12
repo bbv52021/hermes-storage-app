@@ -1917,7 +1917,7 @@ async function submitEditItem() {
 async function showAllHousesList() {
     try {
         const res = await api('GET', '/api/tree');
-        const houses = res.data || [];
+        const houses = res.data?.houses || [];
         let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>房屋名称</th><th>房间数</th><th>物品数</th></tr></thead><tbody>';
         houses.forEach(h => {
             const itemCount = (h.rooms || []).reduce((s, r) => s + (r.locations || []).reduce((s2, l) => s2 + (l.items || []).length, 0), 0);
@@ -1940,7 +1940,7 @@ async function showAllHousesList() {
 async function showAllRoomsList() {
     try {
         const res = await api('GET', '/api/tree');
-        const houses = res.data || [];
+        const houses = res.data?.houses || [];
         let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>房间名称</th><th>所属房屋</th><th>位置数</th></tr></thead><tbody>';
         houses.forEach(h => {
             (h.rooms || []).forEach(r => {
@@ -1961,7 +1961,7 @@ async function showAllRoomsList() {
 async function showAllLocationsList() {
     try {
         const res = await api('GET', '/api/tree');
-        const houses = res.data || [];
+        const houses = res.data?.houses || [];
         let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>位置名称</th><th>所属房屋</th><th>所属房间</th><th>物品数</th></tr></thead><tbody>';
         houses.forEach(h => {
             (h.rooms || []).forEach(r => {
@@ -1984,7 +1984,7 @@ async function showAllLocationsList() {
 async function showAllItemsList() {
     try {
         const res = await api('GET', '/api/tree');
-        const houses = res.data || [];
+        const houses = res.data?.houses || [];
         let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>物品名称</th><th>存放位置</th></tr></thead><tbody>';
         houses.forEach(h => {
             (h.rooms || []).forEach(r => {
@@ -2006,27 +2006,80 @@ async function showAllItemsList() {
     }
 }
 
-// ========== 索引记录文本查看 ==========
+// ========== 索引记录文本查看（带分页） ==========
+
+let indexData = [];
+let indexPageSize = 20;
+let indexCurrentPage = 1;
 
 async function showIndexText() {
     try {
         const res = await api('GET', '/api/index');
-        const items = res.data || [];
-        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>#</th><th>物品名称</th><th>存放位置</th></tr></thead><tbody>';
-        items.forEach((item, i) => {
-            const name = item.item_name || item['物品名称'] || '未知';
-            const loc = (item.house || item['所属房屋'] || '') + ' / ' + (item.room || item['所属房间'] || '') + ' / ' + (item.location || item['具体存放位置'] || '');
-            html += `<tr><td>${i + 1}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(loc)}</td></tr>`;
-        });
-        html += '</tbody></table></div>';
-        document.getElementById('detailBody').innerHTML = html;
-        document.getElementById('detailTitle').textContent = `物品总索引清单 (${items.length} 条)`;
-        document.querySelector('#detailModal .modal-footer').style.display = 'none';
-        openModal('detailModal');
-        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
+        indexData = res.data || [];
+        indexCurrentPage = 1;
+        renderIndexTable();
     } catch (e) {
         showToast('加载索引失败: ' + e.message, 'error');
     }
+}
+
+function renderIndexTable() {
+    const total = indexData.length;
+    const totalPages = Math.ceil(total / indexPageSize) || 1;
+    const start = (indexCurrentPage - 1) * indexPageSize;
+    const end = Math.min(start + indexPageSize, total);
+    const pageItems = indexData.slice(start, end);
+
+    let html = `<div style="max-height:50vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>#</th><th>物品名称</th><th>存放位置</th></tr></thead><tbody>`;
+    pageItems.forEach((item, i) => {
+        const name = item.item_name || item['物品名称'] || '未知';
+        const loc = (item.house || item['所属房屋'] || '') + ' / ' + (item.room || item['所属房间'] || '') + ' / ' + (item.location || item['具体存放位置'] || '');
+        html += `<tr><td>${start + i + 1}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(loc)}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+
+    // 分页控制
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span>每页显示:</span>
+            <select id="indexPageSizeSelect" onchange="changeIndexPageSize(this.value)" style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;">
+                <option value="10" ${indexPageSize===10?'selected':''}>10</option>
+                <option value="20" ${indexPageSize===20?'selected':''}>20</option>
+                <option value="50" ${indexPageSize===50?'selected':''}>50</option>
+                <option value="100" ${indexPageSize===100?'selected':''}>100</option>
+                <option value="1000" ${indexPageSize===1000?'selected':''}>1000</option>
+            </select>
+            <span>条</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="goIndexPage(1)" ${indexCurrentPage===1?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${indexCurrentPage===1?'opacity:0.5;cursor:not-allowed;':''}">首页</button>
+            <button onclick="goIndexPage(${indexCurrentPage-1})" ${indexCurrentPage===1?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${indexCurrentPage===1?'opacity:0.5;cursor:not-allowed;':''}">上一页</button>
+            <span>第 ${indexCurrentPage} / ${totalPages} 页</span>
+            <button onclick="goIndexPage(${indexCurrentPage+1})" ${indexCurrentPage===totalPages?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${indexCurrentPage===totalPages?'opacity:0.5;cursor:not-allowed;':''}">下一页</button>
+            <button onclick="goIndexPage(${totalPages})" ${indexCurrentPage===totalPages?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${indexCurrentPage===totalPages?'opacity:0.5;cursor:not-allowed;':''}">末页</button>
+        </div>
+        <span style="color:#666;">共 ${total} 条记录</span>
+    </div>`;
+
+    document.getElementById('detailBody').innerHTML = html;
+    document.getElementById('detailTitle').textContent = `物品总索引清单`;
+    document.querySelector('#detailModal .modal-footer').style.display = 'none';
+    openModal('detailModal');
+    document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
+}
+
+function changeIndexPageSize(size) {
+    indexPageSize = parseInt(size);
+    indexCurrentPage = 1;
+    renderIndexTable();
+}
+
+function goIndexPage(page) {
+    const totalPages = Math.ceil(indexData.length / indexPageSize) || 1;
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    indexCurrentPage = page;
+    renderIndexTable();
 }
 
 // ========== 目录层级操作（房屋/房间/位置）==========
