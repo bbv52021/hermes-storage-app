@@ -1912,98 +1912,122 @@ async function submitEditItem() {
     }
 }
 
-// ========== 统计卡片点击：查看列表 ==========
+// ========== 通用分页列表组件 ==========
+
+let pagedData = [];
+let pagedPageSize = 20;
+let pagedCurrentPage = 1;
+let pagedTitle = '';
+let pagedRenderRow = null;
+
+function showPagedList(title, data, renderRowFn) {
+    pagedTitle = title;
+    pagedData = data;
+    pagedRenderRow = renderRowFn;
+    pagedCurrentPage = 1;
+    renderPagedTable();
+}
+
+function renderPagedTable() {
+    const total = pagedData.length;
+    const totalPages = Math.ceil(total / pagedPageSize) || 1;
+    const start = (pagedCurrentPage - 1) * pagedPageSize;
+    const end = Math.min(start + pagedPageSize, total);
+    const pageItems = pagedData.slice(start, end);
+
+    let html = '<div style="max-height:50vh;overflow-y:auto;"><table class="data-table"><thead><tr>';
+    if (pageItems.length > 0) html += pagedRenderRow(pageItems[0], start, true);
+    html += '</tr></thead><tbody>';
+    pageItems.forEach((item, i) => { html += pagedRenderRow(item, start + i, false); });
+    html += '</tbody></table></div>';
+
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span>每页显示:</span>
+            <select onchange="changePagedPageSize(this.value)" style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;">
+                <option value="10" ${pagedPageSize===10?'selected':''}>10</option>
+                <option value="20" ${pagedPageSize===20?'selected':''}>20</option>
+                <option value="50" ${pagedPageSize===50?'selected':''}>50</option>
+                <option value="100" ${pagedPageSize===100?'selected':''}>100</option>
+                <option value="1000" ${pagedPageSize===1000?'selected':''}>1000</option>
+            </select>
+            <span>条</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button onclick="goPagedPage(1)" ${pagedCurrentPage===1?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${pagedCurrentPage===1?'opacity:0.5;cursor:not-allowed;':''}">首页</button>
+            <button onclick="goPagedPage(${pagedCurrentPage-1})" ${pagedCurrentPage===1?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${pagedCurrentPage===1?'opacity:0.5;cursor:not-allowed;':''}">上一页</button>
+            <span>第 ${pagedCurrentPage} / ${totalPages} 页</span>
+            <button onclick="goPagedPage(${pagedCurrentPage+1})" ${pagedCurrentPage===totalPages?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${pagedCurrentPage===totalPages?'opacity:0.5;cursor:not-allowed;':''}">下一页</button>
+            <button onclick="goPagedPage(${totalPages})" ${pagedCurrentPage===totalPages?'disabled':''} style="padding:4px 8px;border-radius:4px;border:1px solid #ddd;cursor:pointer;${pagedCurrentPage===totalPages?'opacity:0.5;cursor:not-allowed;':''}">末页</button>
+        </div>
+        <span style="color:#666;">共 ${total} 条记录</span>
+    </div>`;
+
+    document.getElementById('detailBody').innerHTML = html;
+    document.getElementById('detailTitle').textContent = pagedTitle;
+    document.querySelector('#detailModal .modal-footer').style.display = 'none';
+    openModal('detailModal');
+    document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
+}
+
+function changePagedPageSize(size) { pagedPageSize = parseInt(size); pagedCurrentPage = 1; renderPagedTable(); }
+function goPagedPage(page) { const t = Math.ceil(pagedData.length / pagedPageSize) || 1; if (page < 1) page = 1; if (page > t) page = t; pagedCurrentPage = page; renderPagedTable(); }
+
+// ========== 统计卡片点击：查看列表（带分页） ==========
 
 async function showAllHousesList() {
     try {
         const res = await api('GET', '/api/tree');
         const houses = res.data?.houses || [];
-        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>房屋名称</th><th>房间数</th><th>物品数</th></tr></thead><tbody>';
-        houses.forEach(h => {
-            const itemCount = (h.rooms || []).reduce((s, r) => s + (r.locations || []).reduce((s2, l) => s2 + (l.items || []).length, 0), 0);
-            html += `<tr style="cursor:pointer;" onclick="navigateToHouse('${escapeHtml(h.name)}')"><td>${escapeHtml(h.name)}</td><td>${(h.rooms || []).length}</td><td>${itemCount}</td></tr>`;
+        const data = houses.map(h => ({
+            name: h.name,
+            rooms: (h.rooms || []).length,
+            items: (h.rooms || []).reduce((s, r) => s + (r.locations || []).reduce((s2, l) => s2 + (l.items || []).length, 0), 0)
+        }));
+        showPagedList('所有房屋', data, (row, idx, isHeader) => {
+            if (isHeader) return '<th>房屋名称</th><th>房间数</th><th>物品数</th>';
+            return `<tr style="cursor:pointer;" onclick="navigateToHouse('${escapeHtml(row.name)}')"><td>${escapeHtml(row.name)}</td><td>${row.rooms}</td><td>${row.items}</td></tr>`;
         });
-        html += '</tbody></table></div>';
-        document.getElementById('detailBody').innerHTML = html;
-        document.getElementById('detailTitle').textContent = '所有房屋';
-        document.querySelector('#detailModal .modal-footer').style.display = 'none';
-        openModal('detailModal');
-        // 恢复 footer 显示
-        const origClose = closeModal;
-        const onHidden = () => { document.querySelector('#detailModal .modal-footer').style.display = ''; };
-        document.getElementById('detailModal').addEventListener('transitionend', onHidden, { once: true });
-    } catch (e) {
-        showToast('加载失败: ' + e.message, 'error');
-    }
+    } catch (e) { showToast('加载失败: ' + e.message, 'error'); }
 }
 
 async function showAllRoomsList() {
     try {
         const res = await api('GET', '/api/tree');
         const houses = res.data?.houses || [];
-        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>房间名称</th><th>所属房屋</th><th>位置数</th></tr></thead><tbody>';
-        houses.forEach(h => {
-            (h.rooms || []).forEach(r => {
-                html += `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(h.name)}</td><td>${(r.locations || []).length}</td></tr>`;
-            });
+        const data = [];
+        houses.forEach(h => { (h.rooms || []).forEach(r => { data.push({ name: r.name, house: h.name, locations: (r.locations || []).length }); }); });
+        showPagedList('所有房间', data, (row, idx, isHeader) => {
+            if (isHeader) return '<th>房间名称</th><th>所属房屋</th><th>位置数</th>';
+            return `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.house)}</td><td>${row.locations}</td></tr>`;
         });
-        html += '</tbody></table></div>';
-        document.getElementById('detailBody').innerHTML = html;
-        document.getElementById('detailTitle').textContent = '所有房间';
-        document.querySelector('#detailModal .modal-footer').style.display = 'none';
-        openModal('detailModal');
-        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
-    } catch (e) {
-        showToast('加载失败: ' + e.message, 'error');
-    }
+    } catch (e) { showToast('加载失败: ' + e.message, 'error'); }
 }
 
 async function showAllLocationsList() {
     try {
         const res = await api('GET', '/api/tree');
         const houses = res.data?.houses || [];
-        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>位置名称</th><th>所属房屋</th><th>所属房间</th><th>物品数</th></tr></thead><tbody>';
-        houses.forEach(h => {
-            (h.rooms || []).forEach(r => {
-                (r.locations || []).forEach(l => {
-                    html += `<tr><td>${escapeHtml(l.name)}</td><td>${escapeHtml(h.name)}</td><td>${escapeHtml(r.name)}</td><td>${(l.items || []).length}</td></tr>`;
-                });
-            });
+        const data = [];
+        houses.forEach(h => { (h.rooms || []).forEach(r => { (r.locations || []).forEach(l => { data.push({ name: l.name, house: h.name, room: r.name, items: (l.items || []).length }); }); }); });
+        showPagedList('所有位置', data, (row, idx, isHeader) => {
+            if (isHeader) return '<th>位置名称</th><th>所属房屋</th><th>所属房间</th><th>物品数</th>';
+            return `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.house)}</td><td>${escapeHtml(row.room)}</td><td>${row.items}</td></tr>`;
         });
-        html += '</tbody></table></div>';
-        document.getElementById('detailBody').innerHTML = html;
-        document.getElementById('detailTitle').textContent = '所有位置';
-        document.querySelector('#detailModal .modal-footer').style.display = 'none';
-        openModal('detailModal');
-        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
-    } catch (e) {
-        showToast('加载失败: ' + e.message, 'error');
-    }
+    } catch (e) { showToast('加载失败: ' + e.message, 'error'); }
 }
 
 async function showAllItemsList() {
     try {
         const res = await api('GET', '/api/tree');
         const houses = res.data?.houses || [];
-        let html = '<div style="max-height:60vh;overflow-y:auto;"><table class="data-table"><thead><tr><th>物品名称</th><th>存放位置</th></tr></thead><tbody>';
-        houses.forEach(h => {
-            (h.rooms || []).forEach(r => {
-                (r.locations || []).forEach(l => {
-                    (l.items || []).forEach(i => {
-                        html += `<tr style="cursor:pointer;" onclick="closeModal('detailModal');showItemDetail('${escapeHtml(h.name)}','${escapeHtml(r.name)}','${escapeHtml(l.name)}','${escapeHtml(i.name)}')"><td>${escapeHtml(i.name)}</td><td>${escapeHtml(h.name)} / ${escapeHtml(r.name)} / ${escapeHtml(l.name)}</td></tr>`;
-                    });
-                });
-            });
+        const data = [];
+        houses.forEach(h => { (h.rooms || []).forEach(r => { (r.locations || []).forEach(l => { (l.items || []).forEach(i => { data.push({ name: i.name, house: h.name, room: r.name, location: l.name }); }); }); }); });
+        showPagedList('所有物品', data, (row, idx, isHeader) => {
+            if (isHeader) return '<th>#</th><th>物品名称</th><th>存放位置</th>';
+            return `<tr style="cursor:pointer;" onclick="closeModal('detailModal');showItemDetail('${escapeHtml(row.house)}','${escapeHtml(row.room)}','${escapeHtml(row.location)}','${escapeHtml(row.name)}')"><td>${idx + 1}</td><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.house)} / ${escapeHtml(row.room)} / ${escapeHtml(row.location)}</td></tr>`;
         });
-        html += '</tbody></table></div>';
-        document.getElementById('detailBody').innerHTML = html;
-        document.getElementById('detailTitle').textContent = '所有物品';
-        document.querySelector('#detailModal .modal-footer').style.display = 'none';
-        openModal('detailModal');
-        document.getElementById('detailModal').addEventListener('transitionend', () => { document.querySelector('#detailModal .modal-footer').style.display = ''; }, { once: true });
-    } catch (e) {
-        showToast('加载失败: ' + e.message, 'error');
-    }
+    } catch (e) { showToast('加载失败: ' + e.message, 'error'); }
 }
 
 // ========== 索引记录文本查看（带分页） ==========
