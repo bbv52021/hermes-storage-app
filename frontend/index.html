@@ -896,6 +896,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>新增物品</span>
         </button>
+        <button class="btn btn-white" onclick="showLocationManagerModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="6" y1="12" x2="6" y2="16"/></svg>
+            <span>管理位置</span>
+        </button>
         <button class="btn btn-white" onclick="refreshIndex()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             <span>刷新索引</span>
@@ -977,17 +981,26 @@
             </button>
         </div>
         <div class="modal-body">
+            <!-- 所属房屋：下拉选择+手动输入 -->
             <div class="form-group">
                 <label>所属房屋 *</label>
-                <input type="text" id="addItemHouse" placeholder="例如：我的家">
+                <div id="addItemHouseDropdownWrapper"></div>
+                <div style="margin-top:6px;font-size:12px;color:var(--text-secondary);">或手动输入新房屋名称：</div>
+                <input type="text" id="addItemHouse" placeholder="例如：我的家" style="margin-top:4px;">
             </div>
+            <!-- 所属房间：下拉选择+手动输入 -->
             <div class="form-group">
                 <label>所属房间 *</label>
-                <input type="text" id="addItemRoom" placeholder="例如：卧室、厨房、书房">
+                <div id="addItemRoomDropdownWrapper"></div>
+                <div style="margin-top:6px;font-size:12px;color:var(--text-secondary);">或手动输入新房间名称：</div>
+                <input type="text" id="addItemRoom" placeholder="例如：卧室、厨房、书房" style="margin-top:4px;">
             </div>
+            <!-- 具体位置：下拉选择+手动输入 -->
             <div class="form-group">
                 <label>具体存放位置 *</label>
-                <input type="text" id="addItemLocation" placeholder="例如：衣柜上层、书架第二层">
+                <div id="addItemLocationDropdownWrapper"></div>
+                <div style="margin-top:6px;font-size:12px;color:var(--text-secondary);">或手动输入新位置名称：</div>
+                <input type="text" id="addItemLocation" placeholder="例如：衣柜上层、书架第二层" style="margin-top:4px;">
             </div>
             <div class="form-group">
                 <label>物品名称 *</label>
@@ -1092,6 +1105,78 @@
         <div class="modal-footer">
             <button class="btn btn-ghost" onclick="closeModal('editItemModal')">取消</button>
             <button class="btn btn-primary" onclick="submitEditItem()">保存修改</button>
+        </div>
+    </div>
+</div>
+
+<!-- 管理位置模态框 -->
+<div class="modal-overlay" id="locationManagerModal">
+    <div class="modal" style="max-width:700px;">
+        <div class="modal-header">
+            <h2>管理房屋/房间/位置</h2>
+            <button class="modal-close" onclick="closeModal('locationManagerModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" style="padding:0;">
+            <!-- Tab切换 -->
+            <div style="display:flex;border-bottom:1px solid var(--border);">
+                <button class="lm-tab active" id="lmTabHouse" onclick="switchLmTab('house')" style="flex:1;padding:12px;border:none;background:transparent;cursor:pointer;font-size:14px;font-weight:500;color:var(--primary);border-bottom:2px solid var(--primary);">🏠 房屋</button>
+                <button class="lm-tab" id="lmTabRoom" onclick="switchLmTab('room')" style="flex:1;padding:12px;border:none;background:transparent;cursor:pointer;font-size:14px;font-weight:500;color:var(--text-secondary);border-bottom:2px solid transparent;">🚪 房间</button>
+                <button class="lm-tab" id="lmTabLocation" onclick="switchLmTab('location')" style="flex:1;padding:12px;border:none;background:transparent;cursor:pointer;font-size:14px;font-weight:500;color:var(--text-secondary);border-bottom:2px solid transparent;">📦 具体位置</button>
+            </div>
+            <div id="lmContent" style="padding:16px;max-height:50vh;overflow-y:auto;">
+                <div class="loading"><div class="spinner"></div></div>
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content:space-between;">
+            <button class="btn btn-primary" onclick="showAddLocationModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                新增房屋/房间/位置
+            </button>
+            <button class="btn btn-ghost" onclick="closeModal('locationManagerModal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 新增房屋/房间/位置模态框 -->
+<div class="modal-overlay" id="addLocationModal">
+    <div class="modal" style="max-width:480px;">
+        <div class="modal-header">
+            <h2>新增房屋/房间/位置</h2>
+            <button class="modal-close" onclick="closeModal('addLocationModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>类型</label>
+                <select id="addLocationType" onchange="updateAddLocationForm()" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;">
+                    <option value="house">新增房屋</option>
+                    <option value="room">新增房间（在已有房屋下）</option>
+                    <option value="location">新增位置（在已有房间下）</option>
+                </select>
+            </div>
+            <div class="form-group" id="addLocParentHouseGroup" style="display:none;">
+                <label>选择房屋 *</label>
+                <select id="addLocParentHouse" onchange="updateAddLocRoomOptions()" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;">
+                    <option value="">-- 请选择房屋 --</option>
+                </select>
+            </div>
+            <div class="form-group" id="addLocParentRoomGroup" style="display:none;">
+                <label>选择房间 *</label>
+                <select id="addLocParentRoom" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;">
+                    <option value="">-- 请选择房间 --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label id="addLocationNameLabel">房屋名称 *</label>
+                <input type="text" id="addLocationName" placeholder="请输入名称">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('addLocationModal')">取消</button>
+            <button class="btn btn-primary" onclick="submitAddLocation()">确认新增</button>
         </div>
     </div>
 </div>
@@ -1595,9 +1680,120 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ========== 新增物品 ==========
+// ========== 新增物品（任务2：下拉选择房屋/房间/位置）==========
+
+// 根据treeData构建下拉选择器HTML，返回select HTML字符串
+function buildSelectHtml(id, options, placeholder, onchangeCode) {
+    let html = `<select id="${id}" onchange="${onchangeCode}" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);color:var(--text);">`;
+    html += `<option value="">-- ${placeholder} --</option>`;
+    options.forEach(opt => {
+        html += `<option value="${escapeAttr(opt)}">${escapeHtml(opt)}</option>`;
+    });
+    html += '</select>';
+    return html;
+}
+
+// 构建并插入"新增物品"弹窗的下拉选择器
+function buildAddItemDropdowns() {
+    if (!treeData || !treeData.houses || treeData.houses.length === 0) {
+        // 没有数据时隐藏下拉区域
+        document.getElementById('addItemHouseDropdownWrapper').innerHTML = '';
+        document.getElementById('addItemRoomDropdownWrapper').innerHTML = '';
+        document.getElementById('addItemLocationDropdownWrapper').innerHTML = '';
+        return;
+    }
+    const houseNames = treeData.houses.map(h => h.name);
+
+    // 房屋下拉
+    document.getElementById('addItemHouseDropdownWrapper').innerHTML =
+        buildSelectHtml('addItemHouseSelect', houseNames, '从已有房屋中选择', 'onAddItemHouseSelectChange(this.value)');
+
+    // 若当前路径有房屋，预选
+    if (currentPath.house && houseNames.includes(currentPath.house)) {
+        document.getElementById('addItemHouseSelect').value = currentPath.house;
+        onAddItemHouseSelectChange(currentPath.house);
+    } else {
+        document.getElementById('addItemRoomDropdownWrapper').innerHTML = '';
+        document.getElementById('addItemLocationDropdownWrapper').innerHTML = '';
+    }
+}
+
+// 用户选了房屋下拉
+function onAddItemHouseSelectChange(houseName) {
+    const houseInput = document.getElementById('addItemHouse');
+    const roomWrapper = document.getElementById('addItemRoomDropdownWrapper');
+    const locWrapper = document.getElementById('addItemLocationDropdownWrapper');
+
+    if (houseName) {
+        houseInput.value = houseName;
+        // 更新房间下拉
+        const house = treeData.houses.find(h => h.name === houseName);
+        const roomNames = house ? house.rooms.map(r => r.name) : [];
+        if (roomNames.length > 0) {
+            roomWrapper.innerHTML = buildSelectHtml('addItemRoomSelect', roomNames, '从已有房间中选择', 'onAddItemRoomSelectChange(this.value)');
+            // 若当前路径有房间，预选
+            if (currentPath.room && currentPath.house === houseName && roomNames.includes(currentPath.room)) {
+                document.getElementById('addItemRoomSelect').value = currentPath.room;
+                onAddItemRoomSelectChange(currentPath.room);
+            } else {
+                locWrapper.innerHTML = '';
+                document.getElementById('addItemRoom').value = '';
+            }
+        } else {
+            roomWrapper.innerHTML = '';
+            locWrapper.innerHTML = '';
+        }
+    } else {
+        houseInput.value = '';
+        roomWrapper.innerHTML = '';
+        locWrapper.innerHTML = '';
+        document.getElementById('addItemRoom').value = '';
+        document.getElementById('addItemLocation').value = '';
+    }
+}
+
+// 用户选了房间下拉
+function onAddItemRoomSelectChange(roomName) {
+    const roomInput = document.getElementById('addItemRoom');
+    const locWrapper = document.getElementById('addItemLocationDropdownWrapper');
+    const houseSelect = document.getElementById('addItemHouseSelect');
+    const houseName = houseSelect ? houseSelect.value : '';
+
+    if (roomName) {
+        roomInput.value = roomName;
+        // 更新位置下拉
+        const house = treeData.houses.find(h => h.name === houseName);
+        const room = house ? house.rooms.find(r => r.name === roomName) : null;
+        const locNames = room ? room.locations.map(l => l.name) : [];
+        if (locNames.length > 0) {
+            locWrapper.innerHTML = buildSelectHtml('addItemLocationSelect', locNames, '从已有位置中选择', 'onAddItemLocationSelectChange(this.value)');
+            // 若当前路径有位置，预选
+            if (currentPath.location && currentPath.room === roomName && locNames.includes(currentPath.location)) {
+                document.getElementById('addItemLocationSelect').value = currentPath.location;
+                document.getElementById('addItemLocation').value = currentPath.location;
+            } else {
+                document.getElementById('addItemLocation').value = '';
+            }
+        } else {
+            locWrapper.innerHTML = '';
+            document.getElementById('addItemLocation').value = '';
+        }
+    } else {
+        roomInput.value = '';
+        locWrapper.innerHTML = '';
+        document.getElementById('addItemLocation').value = '';
+    }
+}
+
+// 用户选了位置下拉
+function onAddItemLocationSelectChange(locName) {
+    document.getElementById('addItemLocation').value = locName || '';
+}
+
 function showAddItemModal() {
-    // 预填当前路径
+    // 构建下拉选择器
+    buildAddItemDropdowns();
+    // 预填当前路径（手动输入框）
     if (currentPath.house) document.getElementById('addItemHouse').value = currentPath.house;
     if (currentPath.room) document.getElementById('addItemRoom').value = currentPath.room;
     if (currentPath.location) document.getElementById('addItemLocation').value = currentPath.location;
@@ -2296,6 +2492,204 @@ function escapeHtml(str) {
 function escapeAttr(str) {
     if (!str) return '';
     return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ========== 任务3：管理位置功能 ==========
+
+let lmCurrentTab = 'house';
+
+function switchLmTab(tab) {
+    lmCurrentTab = tab;
+    // 更新Tab样式
+    ['house', 'room', 'location'].forEach(t => {
+        const btn = document.getElementById('lmTab' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (t === tab) {
+            btn.style.color = 'var(--primary)';
+            btn.style.borderBottom = '2px solid var(--primary)';
+        } else {
+            btn.style.color = 'var(--text-secondary)';
+            btn.style.borderBottom = '2px solid transparent';
+        }
+    });
+    renderLmContent();
+}
+
+function renderLmContent() {
+    const container = document.getElementById('lmContent');
+    if (!treeData || !treeData.houses || treeData.houses.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="padding:32px;"><p>暂无数据，请先新增物品来创建房屋目录</p></div>';
+        return;
+    }
+
+    if (lmCurrentTab === 'house') {
+        let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+        treeData.houses.forEach(house => {
+            const itemCount = house.rooms.reduce((s, r) => s + r.locations.reduce((s2, l) => s2 + l.items.length, 0), 0);
+            html += `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;">
+                <div style="width:40px;height:40px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-weight:600;">${escapeHtml(house.name)}</div>
+                    <div style="font-size:13px;color:var(--text-secondary);">${house.rooms.length} 个房间 · ${itemCount} 件物品</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" onclick="showRenameModal('house','${escapeAttr(house.name)}')">重命名</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteFolder('house','${escapeAttr(house.name)}')">删除</button>
+            </div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    } else if (lmCurrentTab === 'room') {
+        let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+        let hasRooms = false;
+        treeData.houses.forEach(house => {
+            house.rooms.forEach(room => {
+                hasRooms = true;
+                const itemCount = room.locations.reduce((s, l) => s + l.items.length, 0);
+                html += `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;">${escapeHtml(room.name)}</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">${escapeHtml(house.name)} · ${room.locations.length} 个位置 · ${itemCount} 件物品</div>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="showRenameModal('room','${escapeAttr(room.name)}','${escapeAttr(house.name)}')">重命名</button>
+                    <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteFolder('room','${escapeAttr(room.name)}','${escapeAttr(house.name)}')">删除</button>
+                </div>`;
+            });
+        });
+        html += '</div>';
+        if (!hasRooms) html = '<div class="empty-state" style="padding:32px;"><p>暂无房间数据</p></div>';
+        container.innerHTML = html;
+    } else if (lmCurrentTab === 'location') {
+        let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+        let hasLocations = false;
+        treeData.houses.forEach(house => {
+            house.rooms.forEach(room => {
+                room.locations.forEach(loc => {
+                    hasLocations = true;
+                    html += `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;">
+                        <div style="width:40px;height:40px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" width="20" height="20"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                        </div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;">${escapeHtml(loc.name)}</div>
+                            <div style="font-size:13px;color:var(--text-secondary);">${escapeHtml(house.name)} / ${escapeHtml(room.name)} · ${loc.items.length} 件物品</div>
+                        </div>
+                        <button class="btn btn-ghost btn-sm" onclick="showRenameModal('location','${escapeAttr(loc.name)}','${escapeAttr(house.name)}','${escapeAttr(room.name)}')">重命名</button>
+                        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteFolder('location','${escapeAttr(loc.name)}','${escapeAttr(house.name)}','${escapeAttr(room.name)}')">删除</button>
+                    </div>`;
+                });
+            });
+        });
+        html += '</div>';
+        if (!hasLocations) html = '<div class="empty-state" style="padding:32px;"><p>暂无位置数据</p></div>';
+        container.innerHTML = html;
+    }
+}
+
+function showLocationManagerModal() {
+    lmCurrentTab = 'house';
+    switchLmTab('house');
+    openModal('locationManagerModal');
+}
+
+// 新增房屋/房间/位置 弹窗
+function showAddLocationModal() {
+    document.getElementById('addLocationType').value = 'house';
+    updateAddLocationForm();
+    openModal('addLocationModal');
+}
+
+function updateAddLocationForm() {
+    const type = document.getElementById('addLocationType').value;
+    const houseGroup = document.getElementById('addLocParentHouseGroup');
+    const roomGroup = document.getElementById('addLocParentRoomGroup');
+    const nameLabel = document.getElementById('addLocationNameLabel');
+    const nameInput = document.getElementById('addLocationName');
+
+    houseGroup.style.display = type === 'house' ? 'none' : 'block';
+    roomGroup.style.display = type === 'location' ? 'block' : 'none';
+    nameLabel.textContent = type === 'house' ? '房屋名称 *' : type === 'room' ? '房间名称 *' : '位置名称 *';
+    nameInput.placeholder = type === 'house' ? '请输入房屋名称' : type === 'room' ? '请输入房间名称' : '请输入位置名称';
+    nameInput.value = '';
+
+    // 填充房屋下拉选项
+    if (type !== 'house' && treeData && treeData.houses) {
+        const houseSelect = document.getElementById('addLocParentHouse');
+        houseSelect.innerHTML = '<option value="">-- 请选择房屋 --</option>';
+        treeData.houses.forEach(h => {
+            houseSelect.innerHTML += `<option value="${escapeAttr(h.name)}">${escapeHtml(h.name)}</option>`;
+        });
+    }
+    document.getElementById('addLocParentRoom').innerHTML = '<option value="">-- 请选择房间 --</option>';
+}
+
+function updateAddLocRoomOptions() {
+    const houseName = document.getElementById('addLocParentHouse').value;
+    const roomSelect = document.getElementById('addLocParentRoom');
+    roomSelect.innerHTML = '<option value="">-- 请选择房间 --</option>';
+    if (!houseName || !treeData) return;
+    const house = treeData.houses.find(h => h.name === houseName);
+    if (house) {
+        house.rooms.forEach(r => {
+            roomSelect.innerHTML += `<option value="${escapeAttr(r.name)}">${escapeHtml(r.name)}</option>`;
+        });
+    }
+}
+
+async function submitAddLocation() {
+    const type = document.getElementById('addLocationType').value;
+    const name = document.getElementById('addLocationName').value.trim();
+    if (!name) { showToast('请输入名称', 'error'); return; }
+
+    let house = '', room = '';
+    if (type === 'room') {
+        house = document.getElementById('addLocParentHouse').value;
+        if (!house) { showToast('请选择房屋', 'error'); return; }
+    } else if (type === 'location') {
+        house = document.getElementById('addLocParentHouse').value;
+        room = document.getElementById('addLocParentRoom').value;
+        if (!house || !room) { showToast('请选择房屋和房间', 'error'); return; }
+    }
+
+    try {
+        if (type === 'house') {
+            // 创建房屋：通过新增一个占位物品来触发目录创建
+            await api('POST', '/api/items', {
+                house: name,
+                room: '默认房间',
+                location: '默认位置',
+                item_name: '（初始化占位，可删除）',
+                description: '此物品为初始化房屋结构时自动创建，可直接删除'
+            });
+            showToast(`房屋「${name}」创建成功（含默认房间/位置，可在物品管理中删除占位物品）`, 'success');
+        } else if (type === 'room') {
+            await api('POST', '/api/items', {
+                house: house,
+                room: name,
+                location: '默认位置',
+                item_name: '（初始化占位，可删除）',
+                description: '此物品为初始化房间结构时自动创建，可直接删除'
+            });
+            showToast(`房间「${name}」创建成功（含默认位置，可在物品管理中删除占位物品）`, 'success');
+        } else {
+            await api('POST', '/api/items', {
+                house: house,
+                room: room,
+                location: name,
+                item_name: '（初始化占位，可删除）',
+                description: '此物品为初始化位置结构时自动创建，可直接删除'
+            });
+            showToast(`位置「${name}」创建成功（可在物品管理中删除占位物品）`, 'success');
+        }
+        closeModal('addLocationModal');
+        await loadData();
+        renderLmContent();
+    } catch (e) {
+        showToast('创建失败: ' + e.message, 'error');
+    }
 }
 
 // ========== 初始化 ==========
